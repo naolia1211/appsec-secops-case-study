@@ -7,7 +7,7 @@ Docker, pytest and Semgrep. The same image moves from build to mock deployment;
 a blocking SAST finding prevents deployment.
 
 ```text
-Build image → Unit tests → SAST + policy gate → Deploy mock
+Build image â†’ Unit tests â†’ SAST + policy gate â†’ Deploy mock
 ```
 
 ## Quick start
@@ -103,15 +103,30 @@ and [validation](docs/validation.md) for checks performed.
 
 | Artifact | Retention |
 | --- | --- |
-| `built-image` — intermediate image | 1 day |
-| `sast-report` — Semgrep JSON, also uploaded on gate failure | 30 days |
-| `approved-image-<SHA>` — image released after gate PASS | 7 days |
-| `deploy-results` — HTTP responses and container logs | 30 days |
+| `built-image` â€” intermediate image | 1 day |
+| `sast-report` â€” Semgrep JSON, also uploaded on gate failure | 30 days |
+| `approved-image-<SHA>` â€” image released after gate PASS | 7 days |
+| `deploy-results` â€” HTTP responses and container logs | 30 days |
+
+## Kubernetes hardening
+
+Task 2 uses k3d to run K3s inside Docker. It deploys the approved Task 1 image to
+separate insecure and hardened namespaces and verifies runtime controls.
+
+```bash
+bash scripts/demo.sh
+docker compose -f docker-compose.k8s.yml build lab
+docker compose -f docker-compose.k8s.yml run --rm lab all
+```
+
+The CI job `Kubernetes hardening` runs after Deploy mock and downloads the same
+approved image artifact. See [Task 2](docs/task2.md) for risks, remediation,
+NetworkPolicy rollout, evidence and cleanup commands.
 
 ## Scope and limitations
 
-Task 1 implements Build, Test, Security and Deploy mock. Kubernetes and container/IaC
-scanning are reserved for Tasks 2 and 3; `k8s/` currently contains placeholders.
+Task 1 implements Build, Test, Security and Deploy mock. Task 2 adds local Kubernetes
+deployment and hardening. Container/IaC scanning is reserved for Task 3.
 
 - SAST covers the selected source files and rules, not dependency or container vulnerabilities.
 - Registry rules require network access and may change; transitive dependencies and the base image tag are not fully locked.

@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: appsec-hardened
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.32
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/audit-version: v1.32
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.32
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: appsec-demo
+  namespace: appsec-hardened
+automountServiceAccountToken: false
+# The API does not call Kubernetes: no RoleBinding is needed.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: appsec-demo
+  namespace: appsec-hardened
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: appsec-demo}
+  template:
+    metadata:
+      labels: {app: appsec-demo}
+    spec:
+      serviceAccountName: appsec-demo
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: app
+          image: appsec-demo:task1
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+          readinessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 2
+            periodSeconds: 3
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: appsec-demo
+  namespace: appsec-hardened
+spec:
+  type: ClusterIP
+  selector: {app: appsec-demo}
+  ports:
+    - port: 8080
+      targetPort: http

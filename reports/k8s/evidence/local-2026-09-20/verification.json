@@ -1,0 +1,306 @@
+{
+  "timestamp": "2026-09-20T16:49:25.613829+00:00",
+  "cluster": "appsec-lab",
+  "source_image": {
+    "commit": "49ea6dc93ecfe7b29cf2be5f8952429bd12aa0d5",
+    "run_url": "https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35522165028",
+    "image_id": "sha256:41b4f63b7227177055e6e0ad942fcb2213ef90c379ad3b913d47a894f580079c",
+    "artifact_id": 10608846902,
+    "image": "appsec-demo:49ea6dc93ecfe7b29cf2be5f8952429bd12aa0d5",
+    "source": "GitHub Actions approved-image artifact"
+  },
+  "checks": [
+    {
+      "check": "appsec-insecure uses approved Task 1 image",
+      "expected": "appsec-demo:49ea6dc93ecfe7b29cf2be5f8952429bd12aa0d5",
+      "actual": "appsec-demo:49ea6dc93ecfe7b29cf2be5f8952429bd12aa0d5",
+      "passed": true
+    },
+    {
+      "check": "appsec-hardened uses approved Task 1 image",
+      "expected": "appsec-demo:49ea6dc93ecfe7b29cf2be5f8952429bd12aa0d5",
+      "actual": "appsec-demo:49ea6dc93ecfe7b29cf2be5f8952429bd12aa0d5",
+      "passed": true
+    },
+    {
+      "check": "Before and after resolve to the same image",
+      "expected": "sha256:8ecfa842ed8dfad2287c2dbffd3637c1c9e1fd5097a03051b1c58cd34a2a4952",
+      "actual": "sha256:8ecfa842ed8dfad2287c2dbffd3637c1c9e1fd5097a03051b1c58cd34a2a4952",
+      "passed": true
+    },
+    {
+      "check": "appsec-insecure runtime UID",
+      "expected": "0",
+      "actual": "0",
+      "passed": true
+    },
+    {
+      "check": "appsec-insecure service account token mounted",
+      "expected": "True",
+      "actual": "True",
+      "passed": true
+    },
+    {
+      "check": "appsec-hardened runtime UID",
+      "expected": "10001",
+      "actual": "10001",
+      "passed": true
+    },
+    {
+      "check": "appsec-hardened service account token mounted",
+      "expected": "False",
+      "actual": "False",
+      "passed": true
+    },
+    {
+      "check": "Privilege escalation disabled",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "check": "All capabilities dropped",
+      "expected": [
+        "ALL"
+      ],
+      "actual": [
+        "ALL"
+      ],
+      "passed": true
+    },
+    {
+      "check": "Privileged disabled",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "check": "Resource limits enforced in pod spec",
+      "expected": {
+        "cpu": "500m",
+        "memory": "128Mi"
+      },
+      "actual": {
+        "cpu": "500m",
+        "memory": "128Mi"
+      },
+      "passed": true
+    },
+    {
+      "check": "Root filesystem rejects writes with EROFS",
+      "expected": "30",
+      "actual": "30",
+      "passed": true
+    },
+    {
+      "check": "Runtime no new privileges",
+      "expected": "1",
+      "actual": "1",
+      "passed": true
+    },
+    {
+      "check": "Runtime seccomp filter active",
+      "expected": "2",
+      "actual": "2",
+      "passed": true
+    },
+    {
+      "check": "Runtime effective capabilities empty",
+      "expected": 0,
+      "actual": 0,
+      "passed": true
+    },
+    {
+      "check": "RBAC appsec-insecure: get secrets",
+      "expected": "yes",
+      "actual": "yes",
+      "passed": true
+    },
+    {
+      "check": "RBAC appsec-insecure: list pods",
+      "expected": "yes",
+      "actual": "yes",
+      "passed": true
+    },
+    {
+      "check": "RBAC appsec-insecure: create deployments",
+      "expected": "yes",
+      "actual": "yes",
+      "passed": true
+    },
+    {
+      "check": "RBAC appsec-hardened: get secrets",
+      "expected": "no",
+      "actual": "no",
+      "passed": true
+    },
+    {
+      "check": "RBAC appsec-hardened: list pods",
+      "expected": "no",
+      "actual": "no",
+      "passed": true
+    },
+    {
+      "check": "RBAC appsec-hardened: create deployments",
+      "expected": "no",
+      "actual": "no",
+      "passed": true
+    },
+    {
+      "check": "Positive control: sink is reachable",
+      "expected": {
+        "reachable": true,
+        "body": {
+          "status": "ok"
+        }
+      },
+      "actual": {
+        "reachable": true,
+        "body": {
+          "status": "ok"
+        }
+      },
+      "passed": true
+    },
+    {
+      "check": "Insecure app accepts unapproved client",
+      "expected": {
+        "reachable": true,
+        "body": {
+          "status": "ok"
+        }
+      },
+      "actual": {
+        "reachable": true,
+        "body": {
+          "status": "ok"
+        }
+      },
+      "passed": true
+    },
+    {
+      "check": "Hardened app accepts approved client",
+      "expected": {
+        "reachable": true,
+        "body": {
+          "status": "ok"
+        }
+      },
+      "actual": {
+        "reachable": true,
+        "body": {
+          "status": "ok"
+        }
+      },
+      "passed": true
+    },
+    {
+      "check": "Ingress blocked from appsec-clients/denied",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "observation": {
+        "reachable": false,
+        "error_type": "ConnectionRefusedError"
+      }
+    },
+    {
+      "check": "Ingress blocked from appsec-clients/denied positive control",
+      "expected": {
+        "reachable": true,
+        "body": {
+          "status": "ok"
+        }
+      },
+      "actual": {
+        "reachable": true,
+        "body": {
+          "status": "ok"
+        }
+      },
+      "passed": true
+    },
+    {
+      "check": "Ingress blocked from appsec-outsider/outsider",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "observation": {
+        "reachable": false,
+        "error_type": "ConnectionRefusedError"
+      }
+    },
+    {
+      "check": "Ingress blocked from appsec-outsider/outsider positive control",
+      "expected": {
+        "reachable": true,
+        "body": {
+          "status": "ok"
+        }
+      },
+      "actual": {
+        "reachable": true,
+        "body": {
+          "status": "ok"
+        }
+      },
+      "passed": true
+    },
+    {
+      "check": "Insecure app has unrestricted egress",
+      "expected": {
+        "reachable": true,
+        "body": {
+          "status": "ok"
+        }
+      },
+      "actual": {
+        "reachable": true,
+        "body": {
+          "status": "ok"
+        }
+      },
+      "passed": true
+    },
+    {
+      "check": "Hardened app egress blocked to reachable sink",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "observation": {
+        "reachable": false,
+        "error_type": "ConnectionRefusedError"
+      }
+    },
+    {
+      "check": "Hardened app egress blocked to reachable sink positive control",
+      "expected": {
+        "reachable": true,
+        "body": {
+          "status": "ok"
+        }
+      },
+      "actual": {
+        "reachable": true,
+        "body": {
+          "status": "ok"
+        }
+      },
+      "passed": true
+    },
+    {
+      "check": "DNS exception still permits resolution",
+      "expected": "True",
+      "actual": "True",
+      "passed": true
+    },
+    {
+      "check": "Pod Security admission rejects privileged pod",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "error": null
+}

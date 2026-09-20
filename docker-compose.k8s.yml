@@ -1,0 +1,12 @@
+name: appsec-k8s
+services:
+  lab:
+    build:
+      context: .
+      dockerfile: Dockerfile.k8s-tools
+    image: appsec-k8s-tools:local
+    volumes:
+      - .:/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      KUBECONFIG: /workspace/.task2/kubeconfig

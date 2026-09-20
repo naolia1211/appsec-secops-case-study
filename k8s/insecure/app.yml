@@ -1,0 +1,70 @@
+# Deliberately unsafe lab fixture. Apply only to the dedicated appsec-lab cluster.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: appsec-insecure
+  labels:
+    pod-security.kubernetes.io/enforce: privileged
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: excessive-access
+  namespace: appsec-insecure
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: default-excessive-access
+  namespace: appsec-insecure
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: appsec-insecure
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: excessive-access
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: appsec-demo
+  namespace: appsec-insecure
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: appsec-demo}
+  template:
+    metadata:
+      labels: {app: appsec-demo}
+    spec:
+      serviceAccountName: default
+      automountServiceAccountToken: true
+      containers:
+        - name: app
+          image: appsec-demo:task1
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+          securityContext:
+            runAsUser: 0
+            privileged: true
+          env:
+            - name: DEMO_API_KEY
+              value: public-demo-value-not-a-secret
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: appsec-demo
+  namespace: appsec-insecure
+spec:
+  selector: {app: appsec-demo}
+  ports:
+    - port: 8080
+      targetPort: 8080

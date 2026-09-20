@@ -100,3 +100,33 @@ jobs:
           path: deploy-results/
           if-no-files-found: warn
           retention-days: 30
+  kubernetes:
+    name: Kubernetes hardening
+    needs: deploy_mock
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: approved-image-${{ github.sha }}
+      - name: Load Task 1 image and record identity
+        run: |
+          docker load -i image.tar
+          mkdir -p reports/task1
+          docker image inspect appsec-demo:${{ github.sha }} --format '{"image":"appsec-demo:${{ github.sha }}","image_id":"{{.Id}}","source":"GitHub Actions Task 1 gate"}' > reports/task1/approved-image.json
+      - name: Create lab and verify hardening
+        run: |
+          docker compose -f docker-compose.k8s.yml build lab
+          docker compose -f docker-compose.k8s.yml run --rm lab all
+      - name: Upload Kubernetes evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubernetes-evidence
+          path: reports/k8s/last-run/
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Remove lab
+        if: always()
+        run: docker compose -f docker-compose.k8s.yml run --rm lab destroy

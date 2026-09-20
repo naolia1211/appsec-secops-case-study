@@ -1,0 +1,416 @@
+{
+    "apiVersion": "v1",
+    "items": [
+        {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "metadata": {
+                "annotations": {
+                    "deployment.kubernetes.io/revision": "1",
+                    "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"apps/v1\",\"kind\":\"Deployment\",\"metadata\":{\"annotations\":{},\"name\":\"appsec-demo\",\"namespace\":\"appsec-insecure\"},\"spec\":{\"replicas\":1,\"selector\":{\"matchLabels\":{\"app\":\"appsec-demo\"}},\"template\":{\"metadata\":{\"labels\":{\"app\":\"appsec-demo\"}},\"spec\":{\"automountServiceAccountToken\":true,\"containers\":[{\"env\":[{\"name\":\"DEMO_API_KEY\",\"value\":\"public-demo-value-not-a-secret\"}],\"image\":\"appsec-demo:49ea6dc93ecfe7b29cf2be5f8952429bd12aa0d5\",\"imagePullPolicy\":\"Never\",\"name\":\"app\",\"ports\":[{\"containerPort\":8080}],\"securityContext\":{\"privileged\":true,\"runAsUser\":0}}],\"serviceAccountName\":\"default\"}}}}\n"
+                },
+                "creationTimestamp": "2026-09-20T16:46:31Z",
+                "generation": 1,
+                "name": "appsec-demo",
+                "namespace": "appsec-insecure",
+                "resourceVersion": "614",
+                "uid": "05428612-a3c1-42c0-86e3-89fb26a58f67"
+            },
+            "spec": {
+                "progressDeadlineSeconds": 600,
+                "replicas": 1,
+                "revisionHistoryLimit": 10,
+                "selector": {
+                    "matchLabels": {
+                        "app": "appsec-demo"
+                    }
+                },
+                "strategy": {
+                    "rollingUpdate": {
+                        "maxSurge": "25%",
+                        "maxUnavailable": "25%"
+                    },
+                    "type": "RollingUpdate"
+                },
+                "template": {
+                    "metadata": {
+                        "creationTimestamp": null,
+                        "labels": {
+                            "app": "appsec-demo"
+                        }
+                    },
+                    "spec": {
+                        "automountServiceAccountToken": true,
+                        "containers": [
+                            {
+                                "env": [
+                                    {
+                                        "name": "DEMO_API_KEY",
+                                        "value": "public-demo-value-not-a-secret"
+                                    }
+                                ],
+                                "image": "appsec-demo:49ea6dc93ecfe7b29cf2be5f8952429bd12aa0d5",
+                                "imagePullPolicy": "Never",
+                                "name": "app",
+                                "ports": [
+                                    {
+                                        "containerPort": 8080,
+                                        "protocol": "TCP"
+                                    }
+                                ],
+                                "resources": {},
+                                "securityContext": {
+                                    "privileged": true,
+                                    "runAsUser": 0
+                                },
+                                "terminationMessagePath": "/dev/termination-log",
+                                "terminationMessagePolicy": "File"
+                            }
+                        ],
+                        "dnsPolicy": "ClusterFirst",
+                        "restartPolicy": "Always",
+                        "schedulerName": "default-scheduler",
+                        "securityContext": {},
+                        "serviceAccount": "default",
+                        "serviceAccountName": "default",
+                        "terminationGracePeriodSeconds": 30
+                    }
+                }
+            },
+            "status": {
+                "availableReplicas": 1,
+                "conditions": [
+                    {
+                        "lastTransitionTime": "2026-09-20T16:46:37Z",
+                        "lastUpdateTime": "2026-09-20T16:46:37Z",
+                        "message": "Deployment has minimum availability.",
+                        "reason": "MinimumReplicasAvailable",
+                        "status": "True",
+                        "type": "Available"
+                    },
+                    {
+                        "lastTransitionTime": "2026-09-20T16:46:31Z",
+                        "lastUpdateTime": "2026-09-20T16:46:37Z",
+                        "message": "ReplicaSet \"appsec-demo-5984d94dc9\" has successfully progressed.",
+                        "reason": "NewReplicaSetAvailable",
+                        "status": "True",
+                        "type": "Progressing"
+                    }
+                ],
+                "observedGeneration": 1,
+                "readyReplicas": 1,
+                "replicas": 1,
+                "updatedReplicas": 1
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "creationTimestamp": "2026-09-20T16:46:31Z",
+                "generateName": "appsec-demo-5984d94dc9-",
+                "labels": {
+                    "app": "appsec-demo",
+                    "pod-template-hash": "5984d94dc9"
+                },
+                "name": "appsec-demo-5984d94dc9-s5wt6",
+                "namespace": "appsec-insecure",
+                "ownerReferences": [
+                    {
+                        "apiVersion": "apps/v1",
+                        "blockOwnerDeletion": true,
+                        "controller": true,
+                        "kind": "ReplicaSet",
+                        "name": "appsec-demo-5984d94dc9",
+                        "uid": "e65f1934-7a47-477a-9eff-c6af29e715a6"
+                    }
+                ],
+                "resourceVersion": "610",
+                "uid": "ec9ce82f-02de-4c4f-a1b2-f3c1ac12b39e"
+            },
+            "spec": {
+                "automountServiceAccountToken": true,
+                "containers": [
+                    {
+                        "env": [
+                            {
+                                "name": "DEMO_API_KEY",
+                                "value": "public-demo-value-not-a-secret"
+                            }
+                        ],
+                        "image": "appsec-demo:49ea6dc93ecfe7b29cf2be5f8952429bd12aa0d5",
+                        "imagePullPolicy": "Never",
+                        "name": "app",
+                        "ports": [
+                            {
+                                "containerPort": 8080,
+                                "protocol": "TCP"
+                            }
+                        ],
+                        "resources": {},
+                        "securityContext": {
+                            "privileged": true,
+                            "runAsUser": 0
+                        },
+                        "terminationMessagePath": "/dev/termination-log",
+                        "terminationMessagePolicy": "File",
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-s2ctt",
+                                "readOnly": true
+                            }
+                        ]
+                    }
+                ],
+                "dnsPolicy": "ClusterFirst",
+                "enableServiceLinks": true,
+                "nodeName": "k3d-appsec-lab-agent-0",
+                "preemptionPolicy": "PreemptLowerPriority",
+                "priority": 0,
+                "restartPolicy": "Always",
+                "schedulerName": "default-scheduler",
+                "securityContext": {},
+                "serviceAccount": "default",
+                "serviceAccountName": "default",
+                "terminationGracePeriodSeconds": 30,
+                "tolerations": [
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/not-ready",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    },
+                    {
+                        "effect": "NoExecute",
+                        "key": "node.kubernetes.io/unreachable",
+                        "operator": "Exists",
+                        "tolerationSeconds": 300
+                    }
+                ],
+                "volumes": [
+                    {
+                        "name": "kube-api-access-s2ctt",
+                        "projected": {
+                            "defaultMode": 420,
+                            "sources": [
+                                {
+                                    "serviceAccountToken": {
+                                        "expirationSeconds": 3607,
+                                        "path": "token"
+                                    }
+                                },
+                                {
+                                    "configMap": {
+                                        "items": [
+                                            {
+                                                "key": "ca.crt",
+                                                "path": "ca.crt"
+                                            }
+                                        ],
+                                        "name": "kube-root-ca.crt"
+                                    }
+                                },
+                                {
+                                    "downwardAPI": {
+                                        "items": [
+                                            {
+                                                "fieldRef": {
+                                                    "apiVersion": "v1",
+                                                    "fieldPath": "metadata.namespace"
+                                                },
+                                                "path": "namespace"
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            },
+            "status": {
+                "conditions": [
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-09-20T16:46:37Z",
+                        "status": "True",
+                        "type": "PodReadyToStartContainers"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-09-20T16:46:31Z",
+                        "status": "True",
+                        "type": "Initialized"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-09-20T16:46:37Z",
+                        "status": "True",
+                        "type": "Ready"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-09-20T16:46:37Z",
+                        "status": "True",
+                        "type": "ContainersReady"
+                    },
+                    {
+                        "lastProbeTime": null,
+                        "lastTransitionTime": "2026-09-20T16:46:31Z",
+                        "status": "True",
+                        "type": "PodScheduled"
+                    }
+                ],
+                "containerStatuses": [
+                    {
+                        "containerID": "containerd://52fb75bc494179c56054c5b57e26273f35ab8741cc9d24dace2021da56f2e352",
+                        "image": "docker.io/library/appsec-demo:49ea6dc93ecfe7b29cf2be5f8952429bd12aa0d5",
+                        "imageID": "sha256:8ecfa842ed8dfad2287c2dbffd3637c1c9e1fd5097a03051b1c58cd34a2a4952",
+                        "lastState": {},
+                        "name": "app",
+                        "ready": true,
+                        "restartCount": 0,
+                        "started": true,
+                        "state": {
+                            "running": {
+                                "startedAt": "2026-09-20T16:46:37Z"
+                            }
+                        },
+                        "volumeMounts": [
+                            {
+                                "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                                "name": "kube-api-access-s2ctt",
+                                "readOnly": true,
+                                "recursiveReadOnly": "Disabled"
+                            }
+                        ]
+                    }
+                ],
+                "hostIP": "172.22.0.4",
+                "hostIPs": [
+                    {
+                        "ip": "172.22.0.4"
+                    }
+                ],
+                "phase": "Running",
+                "podIP": "10.42.1.2",
+                "podIPs": [
+                    {
+                        "ip": "10.42.1.2"
+                    }
+                ],
+                "qosClass": "BestEffort",
+                "startTime": "2026-09-20T16:46:31Z"
+            }
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "Service",
+            "metadata": {
+                "annotations": {
+                    "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"v1\",\"kind\":\"Service\",\"metadata\":{\"annotations\":{},\"name\":\"appsec-demo\",\"namespace\":\"appsec-insecure\"},\"spec\":{\"ports\":[{\"port\":8080,\"targetPort\":8080}],\"selector\":{\"app\":\"appsec-demo\"}}}\n"
+                },
+                "creationTimestamp": "2026-09-20T16:46:31Z",
+                "name": "appsec-demo",
+                "namespace": "appsec-insecure",
+                "resourceVersion": "519",
+                "uid": "c3f871fe-daa8-4826-922e-d0f02ce6aca5"
+            },
+            "spec": {
+                "clusterIP": "10.43.229.70",
+                "clusterIPs": [
+                    "10.43.229.70"
+                ],
+                "internalTrafficPolicy": "Cluster",
+                "ipFamilies": [
+                    "IPv4"
+                ],
+                "ipFamilyPolicy": "SingleStack",
+                "ports": [
+                    {
+                        "port": 8080,
+                        "protocol": "TCP",
+                        "targetPort": 8080
+                    }
+                ],
+                "selector": {
+                    "app": "appsec-demo"
+                },
+                "sessionAffinity": "None",
+                "type": "ClusterIP"
+            },
+            "status": {
+                "loadBalancer": {}
+            }
+        },
+        {
+            "apiVersion": "rbac.authorization.k8s.io/v1",
+            "kind": "Role",
+            "metadata": {
+                "annotations": {
+                    "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"rbac.authorization.k8s.io/v1\",\"kind\":\"Role\",\"metadata\":{\"annotations\":{},\"name\":\"excessive-access\",\"namespace\":\"appsec-insecure\"},\"rules\":[{\"apiGroups\":[\"*\"],\"resources\":[\"*\"],\"verbs\":[\"*\"]}]}\n"
+                },
+                "creationTimestamp": "2026-09-20T16:46:31Z",
+                "name": "excessive-access",
+                "namespace": "appsec-insecure",
+                "resourceVersion": "511",
+                "uid": "96e10178-01d5-4228-b30e-43143a1a1de4"
+            },
+            "rules": [
+                {
+                    "apiGroups": [
+                        "*"
+                    ],
+                    "resources": [
+                        "*"
+                    ],
+                    "verbs": [
+                        "*"
+                    ]
+                }
+            ]
+        },
+        {
+            "apiVersion": "rbac.authorization.k8s.io/v1",
+            "kind": "RoleBinding",
+            "metadata": {
+                "annotations": {
+                    "kubectl.kubernetes.io/last-applied-configuration": "{\"apiVersion\":\"rbac.authorization.k8s.io/v1\",\"kind\":\"RoleBinding\",\"metadata\":{\"annotations\":{},\"name\":\"default-excessive-access\",\"namespace\":\"appsec-insecure\"},\"roleRef\":{\"apiGroup\":\"rbac.authorization.k8s.io\",\"kind\":\"Role\",\"name\":\"excessive-access\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"default\",\"namespace\":\"appsec-insecure\"}]}\n"
+                },
+                "creationTimestamp": "2026-09-20T16:46:31Z",
+                "name": "default-excessive-access",
+                "namespace": "appsec-insecure",
+                "resourceVersion": "512",
+                "uid": "ada1201a-c16f-4d5c-beff-42cc387b8066"
+            },
+            "roleRef": {
+                "apiGroup": "rbac.authorization.k8s.io",
+                "kind": "Role",
+                "name": "excessive-access"
+            },
+            "subjects": [
+                {
+                    "kind": "ServiceAccount",
+                    "name": "default",
+                    "namespace": "appsec-insecure"
+                }
+            ]
+        },
+        {
+            "apiVersion": "v1",
+            "kind": "ServiceAccount",
+            "metadata": {
+                "creationTimestamp": "2026-09-20T16:46:31Z",
+                "name": "default",
+                "namespace": "appsec-insecure",
+                "resourceVersion": "510",
+                "uid": "8c63c871-a31a-4fad-9bb9-37dcc3371b22"
+            }
+        }
+    ],
+    "kind": "List",
+    "metadata": {
+        "resourceVersion": ""
+    }
+}

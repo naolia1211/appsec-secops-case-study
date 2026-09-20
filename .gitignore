@@ -13,3 +13,7 @@ htmlcov/
 .vscode/
 reports/sast/*.json
 *.tar
+
+.task2/
+reports/task1/
+reports/k8s/last-run/
