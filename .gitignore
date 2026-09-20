@@ -1,0 +1,15 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+.env
+.env.*
+*.pem
+*.key
+.idea/
+.vscode/
+reports/sast/*.json
+*.tar

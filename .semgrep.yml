@@ -1,0 +1,27 @@
+rules:
+  - id: python-dynamic-evaluation
+    languages: [python]
+    severity: ERROR
+    message: Dynamic evaluation can execute untrusted code; use explicit parsing.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+  - id: python-shell-execution
+    languages: [python]
+    severity: ERROR
+    message: Avoid shell execution; pass an argument list with shell=False.
+    pattern-either:
+      - pattern: subprocess.$FUNC(..., shell=True, ...)
+      - pattern: os.system(...)
+  - id: python-debug-mode
+    languages: [python]
+    severity: ERROR
+    message: Debug mode must not be enabled in deployed applications.
+    pattern: $APP.run(..., debug=True, ...)
+  - id: python-weak-hash
+    languages: [python]
+    severity: WARNING
+    message: MD5/SHA1 need review; do not use for security-sensitive hashing.
+    pattern-either:
+      - pattern: hashlib.md5(...)
+      - pattern: hashlib.sha1(...)
