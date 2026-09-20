@@ -1,96 +1,74 @@
-# AppSec / SecOps case study — Task 1
+# AppSec / SecOps case study
 
-Ứng dụng Flask nhỏ để minh họa Build → Test → SAST JSON → Security Gate.
-Task 1: đã có code và pipeline; xem `docs/validation.md` để biết phần đã chạy thực tế.
-Task 2 và Task 3: planned. Các thư mục `k8s/` chỉ là placeholder. PDF làm sau.
-
-## Cấu trúc
+A small Flask API with a GitHub Actions pipeline:
 
 ```text
-.github/workflows/ci.yml    Build → Test → Security
-app/                       JSON API, /health
-tests/                     API tests và security gate tests
-scripts/run_sast.py         Chạy scanner thật, chống dùng report cũ
-scripts/security_gate.py    Parse JSON, policy và exit code
-.semgrep.yml               Bộ rule local, được version control
-reports/sast/               Report thực tế được sinh tại đây
-Dockerfile                 Image chạy non-root, Waitress, port 8080
-docker-compose.yml         Demo local
-k8s/                       Placeholder cho Task 2
-docs/                      Ghi chú validation
+Build → Test → Security → Deploy mock
 ```
 
-## Chạy ứng dụng và test
+The image is built once and passed between jobs as an artifact. Security scans
+the Python source with Semgrep and evaluates the JSON report. Deploy mock loads
+the approved image, starts it on the runner, checks two HTTP endpoints, and removes
+the container. It does not create a persistent hosting environment.
 
-Cần Python 3.12 và Docker Desktop chạy Linux containers. Từ thư mục repo:
+## Local setup
 
-```powershell
+Requires Python 3.12. Docker Desktop must use Linux containers.
+From Git Bash on Windows:
+
+```bash
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements-dev.txt
+source .venv/Scripts/activate
+python -m pip install -r requirements-dev.txt -r requirements-security.txt
 python -m pytest -q
-waitress-serve --listen=127.0.0.1:18080 --call app:create_app
-```
-
-Mở `http://localhost:18080/health` hoặc `http://localhost:18080/api/greeting?name=Linh`.
-Trên Linux/macOS, activate bằng `source .venv/bin/activate`.
-
-```powershell
+python scripts/run_sast.py
 docker compose up --build -d
-curl.exe --fail http://localhost:18080/health
+curl --fail http://localhost:18080/health
 docker compose down
 ```
 
-## SAST và gate
+On Linux, activate with `source .venv/bin/activate`. In PowerShell use
+`.\.venv\Scripts\Activate.ps1` and `curl.exe`.
 
-Trên môi trường Python tương thích Semgrep (Linux/WSL được khuyến nghị):
+Endpoints: `/health`, `/api/greeting?name=Linh`, and `/` for service metadata.
+The host port is 18080 because port 8080 was already occupied on the development machine.
 
-```sh
-python -m pip install -r requirements-security.txt
-python scripts/run_sast.py
-python scripts/security_gate.py reports/sast/semgrep.json
-```
+## Pipeline
 
-Scanner không dùng `--error`: findings được ghi vào JSON và **gate riêng** quyết định.
-Wrapper block ngay nếu scanner exit khác 0. Không sử dụng `continue-on-error`.
-
-| Điều kiện | Quyết định |
+| Job | Work |
 | --- | --- |
-| ERROR: eval/exec, shell execution, debug mode | BLOCK, exit 1 |
-| WARNING: MD5/SHA1 cần review theo ngữ cảnh | In finding, PASS nếu không có ERROR |
-| INFO | In finding, PASS nếu không có ERROR |
-| Scan lỗi, JSON lỗi/thiếu, severity lạ, không scan file nào | BLOCK, exit 2 |
+| Build | Build and save `concung-demo:<commit SHA>` |
+| Test | Run API and gate unit tests |
+| Security | Run Semgrep, parse JSON, publish image only on PASS |
+| Deploy mock | Start approved image; check health and greeting; collect logs; stop container |
 
-Severity ở đây là policy của rule, không khẳng định tương đương CVSS.
-Chọn Semgrep vì CLI đơn giản, rule nằm trong repo, JSON dễ parse, không cần server/token.
-Scan sau build/test để lỗi build hoặc hành vi cơ bản được phát hiện trước; chỉ phát hành
-artifact `approved-image-<commit SHA>` sau khi gate PASS. Task 2 dùng chính image này.
-Artifact `built-image` chỉ là đầu vào trung gian chưa được duyệt.
+Each job depends on the previous one. A failed security gate skips Deploy mock.
+SAST and deployment evidence are uploaded even if their checks fail.
 
-Scan kết hợp 4 rule local với ruleset `p/python` từ Semgrep Registry. Ruleset Registry cần mạng và có thể thay đổi theo thời gian; đây không phải audit đầy đủ. Chưa quét dependencies,
-container hoặc IaC. Không dùng findings giả để chứng minh scan thành công.
-Report thật được upload bởi CI kể cả khi gate BLOCK; report local được gitignore.
+## Gate policy
 
-## Demo BLOCK bằng scan thật
+`scripts/run_sast.py` scans `app/` and `scripts/` using `.semgrep.yml` and
+Semgrep's `p/python` ruleset. The registry rules require network access and may
+change over time. The local rules cover dynamic evaluation, shell execution,
+debug mode, and weak hashes.
 
-Tạo file tạm `app/demo_block.py` chỉ có `eval("1 + 1")`, chạy
-`python scripts/run_sast.py`: Semgrep phải tìm thấy ERROR và gate trả exit 1.
-Không import/chạy file này. Xóa file sau demo, chạy scan lại để trở về PASS.
-Để demo warning, thay nội dung bằng `import hashlib` và `hashlib.md5(b"demo")`.
-Tests của gate dùng dữ liệu synthetic chỉ để kiểm thử parser/policy.
+`scripts/security_gate.py` reads `reports/sast/semgrep.json`:
 
-## CI
+- ERROR: block (exit 1).
+- WARNING / INFO: report, but allow if there are no ERROR findings.
+- Scanner failure, invalid report, unknown severity, or no scanned files: block (exit 2).
 
-Workflow chạy khi push, pull request hoặc manual dispatch. Build image một lần, lưu artifact,
-test API/gate và smoke-test đúng image đó, rồi SAST và xuất image đã duyệt.
-Không tự deploy hoặc push image ra registry. Chưa thiết lập branch protection: để chặn merge,
-cần đặt job Security làm required check trên GitHub.
+Semgrep runs without `--error`; the separate gate owns the finding policy.
+Reports are real scanner output. A clean result only applies to the scanned files
+and enabled rules, not dependencies or container contents.
 
-Tham khảo: https://docs.semgrep.dev/cli-reference và
-https://docs.github.com/en/actions/tutorials/build-and-test-code/python.
+## CI evidence
 
-## Bằng chứng chạy trên GitHub Actions
+Run details and artifact names are in [docs/ci-evidence.md](docs/ci-evidence.md).
+The `codex/demo-sast-block` branch contains an intentional eval fixture. Do not
+merge or deploy that branch. Its pipeline should stop at Security.
 
-Xem [hướng dẫn đọc bằng chứng CI](docs/ci-evidence.md).
-Nhánh `main` giữ code sạch. Nhánh `codex/demo-sast-block` chỉ phục vụ demo gate chặn
-finding thật; không merge nhánh demo vào main.
+SAST and deployment artifacts expire after 30 days; approved images after 7 days.
+Branch protection is not configured, so a failing job does not itself prevent a merge.
+
+Kubernetes and container/IaC scanning are reserved for Tasks 2 and 3.
