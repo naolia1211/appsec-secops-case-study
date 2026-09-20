@@ -100,6 +100,49 @@ jobs:
           path: deploy-results/
           if-no-files-found: warn
           retention-days: 30
+  task3_scans:
+    name: SCA, container, and IaC scanning
+    needs: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: approved-image-${{ github.sha }}
+      - name: Load Task 1 image
+        run: docker load -i image.tar
+      - name: SCA (pip-audit)
+        run: |
+          mkdir -p reports/sca/last-run reports/container/last-run reports/iac/last-run
+          docker compose -f docker-compose.security.yml build sca
+          docker compose -f docker-compose.security.yml run --rm sca
+      - name: Container image scan (Trivy)
+        run: |
+          docker compose -f docker-compose.security.yml run --rm trivy \
+            image --input /workspace/image.tar --format json \
+            --output /workspace/reports/container/last-run/trivy-image.json --quiet
+          docker compose -f docker-compose.security.yml run --rm gate \
+            python scripts/container_gate.py reports/container/last-run/trivy-image.json
+      - name: IaC scan (Trivy config)
+        run: |
+          docker compose -f docker-compose.security.yml run --rm trivy \
+            config --format json --output /workspace/reports/iac/last-run/trivy-config.json \
+            --skip-dirs .venv,.git,.pytest_cache,reports,.task2 /workspace --quiet
+          docker compose -f docker-compose.security.yml run --rm gate \
+            python scripts/iac_gate.py reports/iac/last-run/trivy-config.json
+      - name: Upload Task 3 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: task3-scans
+          path: |
+            reports/sca/last-run/
+            reports/container/last-run/
+            reports/iac/last-run/
+          if-no-files-found: warn
+          retention-days: 30
+
   kubernetes:
     name: Kubernetes hardening
     needs: deploy_mock
