@@ -51,7 +51,7 @@ Each job requires the previous job to succeed.
 
 | Job | Check or output |
 | --- | --- |
-| Build | Build `concung-demo:<commit SHA>` and upload the image archive |
+| Build | Build `appsec-demo:<commit SHA>` and upload the image archive |
 | Test | Run API and security-gate unit tests |
 | Security | Scan Python source, evaluate JSON, publish the approved image artifact |
 | Deploy mock | Load the approved image, start a container, verify HTTP responses and collect logs |

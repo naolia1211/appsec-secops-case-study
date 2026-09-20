@@ -1,6 +1,6 @@
 services:
   app:
     build: .
-    image: concung-demo:local
+    image: appsec-demo:local
     ports:
       - "127.0.0.1:18080:8080"
