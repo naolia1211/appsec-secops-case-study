@@ -1,20 +1,37 @@
-# AppSec / SecOps case study
+# AppSec / SecOps Case Study
 
-A small Flask API with a GitHub Actions pipeline:
+[![CI](https://github.com/naolia1211/appsec-secops-case-study/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/naolia1211/appsec-secops-case-study/actions/workflows/ci.yml?query=branch%3Amain)
+
+A Flask API demonstrating a security-gated delivery pipeline with GitHub Actions,
+Docker, pytest and Semgrep. The same image moves from build to mock deployment;
+a blocking SAST finding prevents deployment.
 
 ```text
-Build → Test → Security → Deploy mock
+Build image → Unit tests → SAST + policy gate → Deploy mock
 ```
 
-The image is built once and passed between jobs as an artifact. Security scans
-the Python source with Semgrep and evaluates the JSON report. Deploy mock loads
-the approved image, starts it on the runner, checks two HTTP endpoints, and removes
-the container. It does not create a persistent hosting environment.
+## Quick start
 
-## Local setup
+Requires Docker with Linux container support. Run from the repository root:
 
-Requires Python 3.12. Docker Desktop must use Linux containers.
-From Git Bash on Windows:
+```bash
+docker compose up --build -d
+curl --fail http://localhost:18080/health
+# {"status":"ok"}
+```
+
+The API listens on host port `18080`, mapped to container port `8080`.
+Stop it with `docker compose down`.
+
+| Endpoint | Response |
+| --- | --- |
+| `/` | Service name and version |
+| `/health` | `{"status":"ok"}` |
+| `/api/greeting?name=Linh` | `{"message":"Hello, Linh!"}` |
+
+## Development
+
+Requires Python 3.12. The commands below use Git Bash on Windows:
 
 ```bash
 python -m venv .venv
@@ -22,53 +39,69 @@ source .venv/Scripts/activate
 python -m pip install -r requirements-dev.txt -r requirements-security.txt
 python -m pytest -q
 python scripts/run_sast.py
-docker compose up --build -d
-curl --fail http://localhost:18080/health
-docker compose down
 ```
 
-On Linux, activate with `source .venv/bin/activate`. In PowerShell use
-`.\.venv\Scripts\Activate.ps1` and `curl.exe`.
-
-Endpoints: `/health`, `/api/greeting?name=Linh`, and `/` for service metadata.
-The host port is 18080 because port 8080 was already occupied on the development machine.
+On Linux, activate with `source .venv/bin/activate`. In PowerShell, use
+`.\.venv\Scripts\Activate.ps1`; use `curl.exe` for the HTTP example above.
 
 ## Pipeline
 
-| Job | Work |
+The [workflow](.github/workflows/ci.yml) runs on pushes, pull requests and manual dispatch.
+Each job requires the previous job to succeed.
+
+| Job | Check or output |
 | --- | --- |
-| Build | Build and save `concung-demo:<commit SHA>` |
-| Test | Run API and gate unit tests |
-| Security | Run Semgrep, parse JSON, publish image only on PASS |
-| Deploy mock | Start approved image; check health and greeting; collect logs; stop container |
+| Build | Build `concung-demo:<commit SHA>` and upload the image archive |
+| Test | Run API and security-gate unit tests |
+| Security | Scan Python source, evaluate JSON, publish the approved image artifact |
+| Deploy mock | Load the approved image, start a container, verify HTTP responses and collect logs |
 
-Each job depends on the previous one. A failed security gate skips Deploy mock.
-SAST and deployment evidence are uploaded even if their checks fail.
+Deploy mock verifies `/health` and `/api/greeting`, including their JSON contents.
+Readiness checks have bounded retries, and the container is removed after the check.
+This is an ephemeral deployment on the CI runner, not a persistent public service.
 
-## Gate policy
+## Security gate
 
-`scripts/run_sast.py` scans `app/` and `scripts/` using `.semgrep.yml` and
-Semgrep's `p/python` ruleset. The registry rules require network access and may
-change over time. The local rules cover dynamic evaluation, shell execution,
-debug mode, and weak hashes.
+[`scripts/run_sast.py`](scripts/run_sast.py) scans `app/` and `scripts/` with
+the local [rules](.semgrep.yml) and Semgrep's `p/python` ruleset. The local rules
+cover dynamic evaluation, shell execution, debug mode and weak hashes.
 
-`scripts/security_gate.py` reads `reports/sast/semgrep.json`:
+[`scripts/security_gate.py`](scripts/security_gate.py) parses
+`reports/sast/semgrep.json` and applies this policy:
 
-- ERROR: block (exit 1).
-- WARNING / INFO: report, but allow if there are no ERROR findings.
-- Scanner failure, invalid report, unknown severity, or no scanned files: block (exit 2).
+| Condition | Decision | Exit code |
+| --- | --- | --- |
+| One or more ERROR findings | Block | 1 |
+| WARNING / INFO only, or no findings | Pass; retain findings in report | 0 |
+| Invalid report, scan errors, unknown severity or no scanned files | Block | 2 |
 
-Semgrep runs without `--error`; the separate gate owns the finding policy.
-Reports are real scanner output. A clean result only applies to the scanned files
-and enabled rules, not dependencies or container contents.
+The scanner runs without `--error` so finding policy stays in the gate. The wrapper
+also blocks on a scanner process failure and removes any old report before scanning.
+Severity is supplied by the rule; it is not a CVSS score.
 
-## CI evidence
+## Verified runs
 
-Run details and artifact names are in [docs/ci-evidence.md](docs/ci-evidence.md).
-The `codex/demo-sast-block` branch contains an intentional eval fixture. Do not
-merge or deploy that branch. Its pipeline should stop at Security.
+| Case | Expected result | GitHub Actions |
+| --- | --- | --- |
+| Clean source | All four jobs pass | [PASS run](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35487648462) |
+| Intentional eval fixture | Security fails; Deploy mock is skipped | [BLOCK run](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35487650775) |
 
-SAST and deployment artifacts expire after 30 days; approved images after 7 days.
-Branch protection is not configured, so a failing job does not itself prevent a merge.
+The fixture exists only on the demo branch and must not be merged. Both reports
+come from actual scans. See [CI evidence](docs/ci-evidence.md) for commit hashes
+and [validation](docs/validation.md) for checks performed.
 
-Kubernetes and container/IaC scanning are reserved for Tasks 2 and 3.
+| Artifact | Retention |
+| --- | --- |
+| `built-image` — intermediate image | 1 day |
+| `sast-report` — Semgrep JSON, also uploaded on gate failure | 30 days |
+| `approved-image-<SHA>` — image released after gate PASS | 7 days |
+| `deploy-results` — HTTP responses and container logs | 30 days |
+
+## Scope and limitations
+
+Task 1 implements Build, Test, Security and Deploy mock. Kubernetes and container/IaC
+scanning are reserved for Tasks 2 and 3; `k8s/` currently contains placeholders.
+
+- SAST covers the selected source files and rules, not dependency or container vulnerabilities.
+- Registry rules require network access and may change; transitive dependencies and the base image tag are not fully locked.
+- Branch protection is not configured. A failed gate stops deployment but does not itself prevent merging.

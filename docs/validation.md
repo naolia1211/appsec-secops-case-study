@@ -10,7 +10,7 @@ See [CI runs](ci-evidence.md) for commit hashes and links.
 - Deploy mock loaded the approved image and checked /health and /api/greeting over HTTP.
 - Deployment response files and container logs uploaded as deploy-results.
 - Demo branch produced one ERROR: gate exit 1, Deploy mock skipped.
-- Local checkout is main; the intentional eval fixture exists only on the demo branch.
+- The intentional eval fixture is isolated to the demo branch.
 
 ## Local checks
 
