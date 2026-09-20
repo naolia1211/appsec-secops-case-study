@@ -1,4 +1,4 @@
-name: Task 1 - Build Test Security
+name: CI
 on:
   push:
   pull_request:
@@ -30,19 +30,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install -r requirements-dev.txt
-      - name: Unit tests including gate pass and block cases
+      - name: Run tests
         run: python -m pytest -q
-      - uses: actions/download-artifact@v4
-        with:
-          name: built-image
-      - name: Smoke test built image
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker load -i image.tar
-          docker run -d --name demo -p 127.0.0.1:8080:8080 concung-demo:${{ github.sha }}
-          trap 'docker logs demo; docker rm -f demo' EXIT
-          curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-all-errors --max-time 3 --retry-max-time 30 http://127.0.0.1:8080/health
   security:
     needs: test
     runs-on: ubuntu-latest
@@ -55,7 +44,7 @@ jobs:
       - run: python -m pip install -r requirements-security.txt
       - name: Semgrep JSON scan and security gate
         run: python scripts/run_sast.py
-      - name: Preserve scan evidence even when gate blocks
+      - name: Upload SAST report
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -66,9 +55,48 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: built-image
-      - name: Release approved image artifact for later tasks
+      - name: Publish approved image
         uses: actions/upload-artifact@v4
         with:
           name: approved-image-${{ github.sha }}
           path: image.tar
           retention-days: 7
+  deploy_mock:
+    name: Deploy mock
+    needs: security
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: approved-image-${{ github.sha }}
+      - name: Start approved image
+        run: |
+          docker load -i image.tar
+          docker run -d --name mock-app -p 127.0.0.1:8080:8080 concung-demo:${{ github.sha }}
+      - name: Check deployed API
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p deploy-results
+          curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-all-errors --max-time 3 --retry-max-time 30 http://127.0.0.1:8080/health -o deploy-results/health.json
+          curl --fail --silent --show-error --max-time 5 'http://127.0.0.1:8080/api/greeting?name=CI' -o deploy-results/greeting.json
+          python3 -c 'import json; assert json.load(open("deploy-results/health.json")) == {"status": "ok"}; assert json.load(open("deploy-results/greeting.json")) == {"message": "Hello, CI!"}'
+          echo '### Deploy mock: PASS' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The approved image started successfully; health and greeting responses passed.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Collect logs and stop container
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p deploy-results
+          if docker container inspect mock-app > /dev/null 2>&1; then
+            docker logs mock-app > deploy-results/container.log 2>&1
+            docker rm -f mock-app
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deploy-results
+          path: deploy-results/
+          if-no-files-found: warn
+          retention-days: 30
