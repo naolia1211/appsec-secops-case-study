@@ -1,0 +1,25 @@
+name: appsec-security
+services:
+  sca:
+    image: appsec-sca:local
+    build:
+      context: .
+      dockerfile: Dockerfile.sca
+    command: python scripts/run_sca.py
+    volumes:
+      - ./reports/sca:/workspace/reports/sca
+  gate:
+    # container_gate.py / iac_gate.py are pure standard library: no custom image needed.
+    image: python:3.12-slim
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+  trivy:
+    image: aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969
+    volumes:
+      - .:/workspace
+      - trivy-cache:/root/.cache/
+    working_dir: /workspace
+
+volumes:
+  trivy-cache:
