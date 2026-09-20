@@ -16,7 +16,7 @@ def test_health(client):
 
 
 def test_index(client):
-    assert client.get("/").json["service"] == "concung-demo"
+    assert client.get("/").json["service"] == "appsec-demo"
 
 
 @pytest.mark.parametrize("name, expected", [(None, "world"), ("  Linh  ", "Linh"), ("Việt", "Việt")])

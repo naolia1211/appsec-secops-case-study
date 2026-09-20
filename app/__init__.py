@@ -11,7 +11,7 @@ def create_app():
 
     @app.get("/")
     def index():
-        return jsonify(service="concung-demo", version="1.0.0")
+        return jsonify(service="appsec-demo", version="1.0.0")
 
     @app.get("/api/greeting")
     def greeting():
