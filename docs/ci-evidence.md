@@ -31,3 +31,16 @@ Không merge hoặc triển khai nhánh demo. Main vẫn là bản dùng tiếp 
 Artifacts SAST lưu 30 ngày; nên tải về trước khi hết hạn. Bằng chứng local không thay thế
 run GitHub-hosted. Gate fail chặn job/artifact; chặn merge còn cần branch protection
 với required status check, chưa cấu hình trong task này.
+
+## Runs đã xác minh (2026-09-20)
+
+| Case | Run | Commit | Kết quả |
+| --- | --- | --- | --- |
+| PASS | [35487185141](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35487185141) | `01162b80ddc9e9098167c33f0257351d72a73630` | Build, Test, Security success |
+| BLOCK | [35487187658](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35487187658) | `84b8ef57495a5cebd52a11834dbd5f00141a3f8d` | Build/Test success, Security failure |
+
+- Cả hai run sử dụng 155 rule. Main: 4 file, 0 finding, PASS.
+- Demo: 5 file, 1 ERROR `python-dynamic-evaluation`, gate exit 1.
+- Hai run đều có artifact `sast-report`; chỉ PASS có `approved-image-01162b80ddc9e9098167c33f0257351d72a73630`.
+- Lần chạy ban đầu gặp race khi container chưa sẵn sàng; bản sửa thêm retry HTTP có thời hạn và đã pass trên GitHub.
+- Commit tài liệu sau các run chỉ cập nhật bằng chứng, không thay đổi code đã kiểm thử.

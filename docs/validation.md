@@ -8,9 +8,9 @@
 - Temporary MD5 fixture: actual WARNING finding, gate exit 0 confirmed.
 - Temporary fixture removed and clean scan rerun. Demo JSON remains locally in reports/sast/.
 - Workflow YAML parsed and Build → Test → Security dependencies checked.
-- GitHub-hosted Actions has not run: repository has not been pushed in this session.
+- GitHub-hosted Actions verified: Build, Test and Security PASS on main; intentional demo blocked at Security. See ci-evidence.md for run links.
 - Requirements pin direct dependencies; transitive packages and base image tag are not fully locked.
-- Four local rules provide demonstration coverage, not comprehensive security assurance.
+- Four local rules plus the Semgrep p/python registry ruleset provide demonstration coverage, not comprehensive security assurance.
 - PDF, Kubernetes and container/IaC scanning are deferred.
 
 ## Expanded SAST coverage
@@ -19,4 +19,4 @@
 - Removed unnecessary CLI-controlled scan targets/report path; scanner now uses fixed project paths.
 - Re-ran pytest: 24 passed.
 - Added GitHub Actions summary table and evidence guide.
-- GitHub publication is pending explicit approval for the public repository and main/demo branches; no hosted run exists yet.
+- User approved publication; main and codex/demo-sast-block have been pushed and both hosted outcomes verified.
