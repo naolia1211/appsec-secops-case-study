@@ -123,11 +123,31 @@ The CI job `Kubernetes hardening` runs after Deploy mock and downloads the same
 approved image artifact. See [Task 2](docs/task2.md) for risks, remediation,
 NetworkPolicy rollout, evidence and cleanup commands.
 
+## SCA, container, and IaC scanning
+
+Task 3 adds [pip-audit](https://pypi.org/project/pip-audit/) for dependency
+scanning and [Trivy](https://aquasecurity.github.io/trivy/) for both the built
+image and the Dockerfile/Kubernetes manifests, covering all three optional areas
+against the same image Task 1 approves and the same manifests Task 2 hardens.
+
+```bash
+bash scripts/demo.sh
+bash scripts/demo_task3.sh
+```
+
+Each of the three gates (`scripts/sca_gate.py`, `scripts/container_gate.py`,
+`scripts/iac_gate.py`) blocks on a different, independently justified condition —
+see [Task 3](docs/task3.md) for the policy table, the findings before and after
+the fix, and how to reproduce a BLOCK on the `codex/demo-dependency-block` fixture
+branch.
+
 ## Scope and limitations
 
-Task 1 implements Build, Test, Security and Deploy mock. Task 2 adds local Kubernetes
-deployment and hardening. Container/IaC scanning is reserved for Task 3.
+Task 1 implements Build, Test, Security and Deploy mock. Task 2 adds local
+Kubernetes deployment and hardening. Task 3 adds SCA, container image, and IaC
+scanning.
 
-- SAST covers the selected source files and rules, not dependency or container vulnerabilities.
+- SAST covers the selected source files and rules, not dependency or container vulnerabilities; those are Task 3's job.
 - Registry rules require network access and may change; transitive dependencies and the base image tag are not fully locked.
+- 152 OS-level container findings (Debian 13 "trixie") currently have no published fix and are accepted/monitored rather than blocked; see [Task 3](docs/task3.md#limitations).
 - Branch protection is not configured. A failed gate stops deployment but does not itself prevent merging.
