@@ -29,6 +29,17 @@ Stop it with `docker compose down`.
 | `/health` | `{"status":"ok"}` |
 | `/api/greeting?name=Linh` | `{"message":"Hello, Linh!"}` |
 
+## Full local pipeline with Docker
+
+From Git Bash or a Linux shell, run `bash scripts/demo.sh`. Docker Compose v2
+builds the application and check images, runs tests and SAST, then starts the
+application only if the gate passes. Python is installed inside the check image;
+no host Python is required. The initial run downloads packages and registry rules.
+
+The JSON report is written to `reports/sast/semgrep.json`. The local app stays
+available on port 18080 until `docker compose down`. GitHub's mock deployment
+instead removes its container when the job ends.
+
 ## Development
 
 Requires Python 3.12. The commands below use Git Bash on Windows:
