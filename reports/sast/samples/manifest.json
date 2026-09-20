@@ -1,0 +1,18 @@
+[
+  {
+    "file": "semgrep-pass.json",
+    "sha256": "6fd41e867721c99afc0b3ed3e941be623771e97219530926a81aacd3236cacb9",
+    "run_url": "https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35521592992",
+    "commit": "a06e8c6c1c38854b1b072fd1442d1844daa61a1f",
+    "gate": "PASS",
+    "retrieved_date": "2026-09-20"
+  },
+  {
+    "file": "semgrep-block.json",
+    "sha256": "cfc55be73c452990e81ca8578e9e3e23540f0bc53945c3117c0c9291b48efe43",
+    "run_url": "https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35521617059",
+    "commit": "e5014f52b19f34e2a8f7515effbaa76e93887f92",
+    "gate": "BLOCK",
+    "retrieved_date": "2026-09-20"
+  }
+]

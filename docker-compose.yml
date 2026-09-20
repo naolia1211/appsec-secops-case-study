@@ -1,6 +1,21 @@
+x-checks: &checks
+  image: appsec-checks:local
+  build:
+    context: .
+    dockerfile: Dockerfile.checks
+  profiles: [checks]
+
 services:
   app:
     build: .
     image: appsec-demo:local
     ports:
       - "127.0.0.1:18080:8080"
+  test:
+    <<: *checks
+    command: python -m pytest -q
+  security:
+    <<: *checks
+    command: python scripts/run_sast.py
+    volumes:
+      - ./reports/sast:/workspace/reports/sast

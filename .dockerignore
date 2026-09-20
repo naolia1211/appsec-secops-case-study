@@ -1,5 +1,11 @@
 *
-!requirements.txt
+!requirements*.txt
 !app/
 !app/**
-app/**/__pycache__/
+!scripts/
+!scripts/**
+!tests/
+!tests/**
+!.semgrep.yml
+!pytest.ini
+**/__pycache__/
