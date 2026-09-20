@@ -1,5 +1,6 @@
 *
 !requirements*.txt
+!run.py
 !app/
 !app/**
 !scripts/
