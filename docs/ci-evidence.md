@@ -1,46 +1,35 @@
-# Chứng minh pipeline chạy thật trên GitHub Actions
+# CI runs
 
-Mở repository → Actions → **Task 1 - Build Test Security**.
+Verified on 2026-09-20.
 
-## Lần PASS trên main
+| Case | Commit | Run |
+| --- | --- | --- |
+| Clean main | `a20608cd4c79d5e09ecccd6edc688748e7853135` | [35487648462](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35487648462) |
+| Intentional SAST failure | `0f9b4eb10c927671d9bc963176bdbc7293c5f987` | [35487650775](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35487650775) |
 
-1. Trang run hiển thị commit SHA và runner GitHub-hosted.
-2. Build xanh: mở log `Build application image` để thấy Docker build.
-3. Test xanh: mở log unit tests và smoke test HTTP từ image đã build.
-4. Security xanh: mở log Semgrep và gate, xem số file/rule/findings thực tế.
-5. Ở Summary, xem bảng kết quả gate và tải artifact `sast-report`.
-6. Artifact `approved-image-<SHA>` chỉ được xuất sau khi gate pass.
+| Job | Main | Demo branch |
+| --- | --- | --- |
+| Build | Success | Success |
+| Test | Success | Success |
+| Security | Success | Failed: one ERROR, gate exit 1 |
+| Deploy mock | Success | Skipped |
 
-## Lần BLOCK trên codex/demo-sast-block
+Open a run and select a job to inspect its logs. Artifacts appear on the run summary.
 
-Nhánh demo có file `app/demo_block.py` chứa hàm dùng eval, chỉ để scanner đọc;
-ứng dụng không import hoặc gọi hàm đó. Đây là source fixture cố ý có lỗi,
-không phải report JSON giả.
+- `sast-report`: actual Semgrep JSON, including on a blocked run.
+- `approved-image-<SHA>`: the image released by Security on PASS.
+- `deploy-results`: health response, greeting response and container logs from Deploy mock.
+- `built-image`: intermediate image passed between jobs; it is not a release approval.
 
-Build và Test vẫn phải xanh. Security đỏ vì finding ERROR, gate exit 1.
-JSON `sast-report` vẫn tải được dù job fail. Không có artifact `approved-image-<SHA>`.
-Không merge hoặc triển khai nhánh demo. Main vẫn là bản dùng tiếp cho Task 2.
+The demo branch adds `app/demo_block.py`, an uncalled function containing eval.
+Semgrep detects it; no JSON findings are fabricated. That branch must not be merged.
 
-## Evidence nên giữ cho PDF sau này
+Deploy mock runs on an ephemeral GitHub runner. It loads the approved image without
+rebuilding, checks both response status and JSON contents, and removes the container.
+No application remains hosted after the job finishes.
 
-- Link run PASS và BLOCK, commit SHA của từng run.
-- Ảnh Summary của hai lần chạy.
-- Log test và log gate có exit code.
-- JSON tải trực tiếp từ artifact của mỗi run.
+The initial smoke test hit a startup race. Bounded HTTP retries fixed it; the check
+now belongs to Deploy mock, after Security.
 
-Artifacts SAST lưu 30 ngày; nên tải về trước khi hết hạn. Bằng chứng local không thay thế
-run GitHub-hosted. Gate fail chặn job/artifact; chặn merge còn cần branch protection
-với required status check, chưa cấu hình trong task này.
-
-## Runs đã xác minh (2026-09-20)
-
-| Case | Run | Commit | Kết quả |
-| --- | --- | --- | --- |
-| PASS | [35487185141](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35487185141) | `01162b80ddc9e9098167c33f0257351d72a73630` | Build, Test, Security success |
-| BLOCK | [35487187658](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35487187658) | `84b8ef57495a5cebd52a11834dbd5f00141a3f8d` | Build/Test success, Security failure |
-
-- Cả hai run sử dụng 155 rule. Main: 4 file, 0 finding, PASS.
-- Demo: 5 file, 1 ERROR `python-dynamic-evaluation`, gate exit 1.
-- Hai run đều có artifact `sast-report`; chỉ PASS có `approved-image-01162b80ddc9e9098167c33f0257351d72a73630`.
-- Lần chạy ban đầu gặp race khi container chưa sẵn sàng; bản sửa thêm retry HTTP có thời hạn và đã pass trên GitHub.
-- Commit tài liệu sau các run chỉ cập nhật bằng chứng, không thay đổi code đã kiểm thử.
+Download SAST/deployment artifacts within 30 days, and the approved image within 7 days.
+Documentation-only commits after these runs do not change the verified application or workflow.

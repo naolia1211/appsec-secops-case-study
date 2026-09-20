@@ -1,22 +1,28 @@
-# Local validation — 2026-09-20
+# Validation
 
-- Python 3.12: 24 pytest tests passed (API behavior, gate policy, malformed/missing reports).
-- Docker Compose config validated and `docker build -t concung-demo:local .` succeeded.
-- Built container: HTTP /health and greeting verified; runtime UID 10001 verified.
-- Semgrep 1.136.0: 4 local rules scanned 4 source files; actual JSON report produced; clean gate PASS.
-- Temporary eval fixture: actual Semgrep ERROR finding, gate exit 1 confirmed.
-- Temporary MD5 fixture: actual WARNING finding, gate exit 0 confirmed.
-- Temporary fixture removed and clean scan rerun. Demo JSON remains locally in reports/sast/.
-- Workflow YAML parsed and Build → Test → Security dependencies checked.
-- GitHub-hosted Actions verified: Build, Test and Security PASS on main; intentional demo blocked at Security. See ci-evidence.md for run links.
-- Requirements pin direct dependencies; transitive packages and base image tag are not fully locked.
-- Four local rules plus the Semgrep p/python registry ruleset provide demonstration coverage, not comprehensive security assurance.
-- PDF, Kubernetes and container/IaC scanning are deferred.
+## GitHub Actions
 
-## Expanded SAST coverage
+See [CI runs](ci-evidence.md) for commit hashes and links.
 
-- Added Semgrep Registry p/python alongside local rules: 155 rules scanned 4 source files, zero findings, gate PASS.
-- Removed unnecessary CLI-controlled scan targets/report path; scanner now uses fixed project paths.
-- Re-ran pytest: 24 passed.
-- Added GitHub Actions summary table and evidence guide.
-- User approved publication; main and codex/demo-sast-block have been pushed and both hosted outcomes verified.
+- Docker image built on the GitHub runner.
+- 24 API and gate tests passed.
+- Semgrep ran 155 rules on the clean source: zero findings, gate PASS.
+- Deploy mock loaded the approved image and checked /health and /api/greeting over HTTP.
+- Deployment response files and container logs uploaded as deploy-results.
+- Demo branch produced one ERROR: gate exit 1, Deploy mock skipped.
+- Local checkout is main; the intentional eval fixture exists only on the demo branch.
+
+## Local checks
+
+- Docker build and Compose configuration checked.
+- API responses and non-root UID 10001 checked in a running container.
+- Gate tested with missing/malformed reports, scanner errors, unknown severities and empty scan scope.
+- ERROR and WARNING behavior also checked with real Semgrep scans using temporary source fixtures.
+- Workflow YAML and job dependency chain checked before pushing.
+
+## Scope
+
+Build, Test, Security and Deploy mock are implemented. The pipeline generates JSON and
+uses a separate parser for its pass/fail decision. PDF analysis is pending.
+Kubernetes, dependency/container/IaC scanning and persistent deployment are outside Task 1.
+Registry rules and transitive dependencies are not fully locked. Branch protection is not configured.
