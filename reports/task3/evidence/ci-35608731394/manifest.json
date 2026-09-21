@@ -1,0 +1,10 @@
+{
+  "run": "https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35608731394",
+  "commit": "b62e3aa1e33a7d2be0b984aeec8ff7e4319ff117",
+  "decision": "PASS: SCA, container and IaC; zero image findings; no exceptions",
+  "sha256": {
+    "pip-audit.json": "126289ebb3b6f1fd4e22e73f6da85b58fc82c724d2eb356eb923f29636fec215",
+    "trivy-image.json": "0f71376f90b97d3b80b2ed2eb488785c77d77195b69135c035ace39425ca2aaf",
+    "trivy-config.json": "5b2136c65442126cbc587562697aa4978477d3911d69427c22b9799661ae1a4d"
+  }
+}

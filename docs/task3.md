@@ -8,15 +8,24 @@ as the case study explicitly allows.
 
 ## Run
 
-Requirements: the same Docker Engine with Linux containers and Compose v2 used by
-Tasks 1 and 2. Task 3 scans the image Task 1 approved, so run Task 1 first if that
-record is stale or missing (a build with a different image ID makes the container
-scan fall back to `appsec-demo:local` rather than silently trusting old evidence).
+Requires Docker Engine with Linux containers and Compose v2. The full local
+pipeline already includes Task 3:
 
 ```bash
 bash scripts/demo.sh
+```
+
+To rerun only Task 3 after a successful Task 1 build/SAST approval:
+
+```bash
 bash scripts/demo_task3.sh
 ```
+
+Missing or changed approval blocks; the scan never falls back to another image.
+Docker Desktop and Trivy can expose different kinds of digest, so the scanner's
+config digest is checked against the exact config bytes in the Docker save archive.
+The archive's tag must match the approved image and Docker identity is checked
+before and after export.
 
 Trivy runs as the pinned upstream image `aquasec/trivy@sha256:62b1e65...` (see
 `docker-compose.security.yml`), not a custom build, since Aqua already publishes
@@ -139,3 +148,22 @@ branch protection is claimed by this single-maintainer lab.
 
 The local script stops on its first failed gate. CI preserves IaC evidence even
 if container scanning fails. Reports are time-specific; advisory databases change.
+
+## Base-image remediation and current result
+
+The Debian-based image was correctly blocked by the stricter policy: 44 HIGH and
+2 UNKNOWN findings. The application now builds and runs on the official Python
+3.12 Alpine image, pinned by digest in both stages. The scanned OS is Alpine
+3.24.2. Debian packages responsible for the old findings are no longer installed;
+package metadata is retained, scanners and the gate have not been weakened, and
+security/exceptions.json remains empty.
+
+The new image has zero OS and Python-package findings in run
+[35608731394](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35608731394),
+commit b62e3aa1e33a7d2be0b984aeec8ff7e4319ff117. SCA and IaC gates also pass.
+Raw reports and checksums are in reports/task3/evidence/ci-35608731394; the previous
+BLOCK remains in ci-35607540442. Runtime API, UID 10001 and all 33 local Kubernetes
+checks passed on the new image. This verifies the application used here; a base
+change needs new compatibility testing if native dependencies are added later.
+A zero-finding snapshot is not a permanent guarantee; keep rescanning and update
+the pinned base through a tested change.

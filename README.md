@@ -150,13 +150,15 @@ Kubernetes deployment and hardening. Task 3 adds SCA, container image, and IaC
 scanning.
 
 - SAST covers the selected source files and rules, not dependency or container vulnerabilities; those are Task 3's job.
-- Registry rules require network access and may change; transitive dependencies and the base image tag are not fully locked.
-- Historical image reports contain 44 HIGH and 2 UNKNOWN unfixed OS findings. These block deployment under the current policy until remediated or explicitly excepted.
+- Registry rules require network access and may change; transitive dependencies are not fully locked. The application base image is pinned by digest.
+- Historical image reports contain 44 HIGH and 2 UNKNOWN unfixed OS findings. The current pinned Alpine runtime removes those Debian packages and scans with zero findings.
 - Branch protection is not configured. A failed gate stops deployment but does not itself prevent merging.
 
 Task 3 now blocks deployment on fixable or HIGH/CRITICAL/UNKNOWN image findings.
 See [exception review](docs/security-exceptions.md). Historical green runs predate
 this policy. No risk exceptions are accepted by default.
 
-Current policy verification: [run 35607540442](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35607540442)
+Historical BLOCK verification: [run 35607540442](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35607540442)
 (Build/Test/SAST/SCA pass, image gate blocks 46 findings, IaC passes, deployment and Kubernetes skip).
+
+Remediated image: [PASS scan run 35608731394](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35608731394). SCA, container and IaC pass with no risk exceptions; local API and all 33 Kubernetes checks pass.

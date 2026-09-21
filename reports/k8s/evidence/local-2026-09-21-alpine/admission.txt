@@ -1,0 +1,1 @@
+Error from server (Forbidden): error when creating "STDIN": pods "rejected-privileged" is forbidden: violates PodSecurity "restricted:v1.32": privileged (container "app" must not set securityContext.privileged=true), allowPrivilegeEscalation != false (container "app" must set securityContext.allowPrivilegeEscalation=false)

@@ -37,3 +37,7 @@ Documentation-only commits after these runs do not change the verified applicati
 ## Task 3 policy verification
 
 Commit `98c9861819198d9ce860b97360fe6e3ac53c4dea`, run [35607540442](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35607540442): Build, 66 tests and SAST passed. SCA passed. Container gate blocked 44 HIGH and 2 UNKNOWN findings with exit 1. IaC passed; Deploy mock and Kubernetes were skipped. The task3-scans artifact contains all three reports. This is a verified BLOCK, not a successful release. No exceptions were added to turn the run green.
+
+## Remediated image PASS
+
+Commit `b62e3aa1e33a7d2be0b984aeec8ff7e4319ff117`, run [35608731394](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35608731394): all six jobs succeeded (Build, 68 tests, SAST, Task 3 scans, Deploy mock, Kubernetes). Image scan: zero OS/Python findings. SCA and IaC gates passed. Local Kubernetes also passed 33 checks. No policy downgrade or exceptions were used. The runtime base changed from Debian slim to digest-pinned Python Alpine; image config identity is verified against the exported archive. PASS scan reports are archived in reports/task3/evidence/ci-35608731394 alongside the earlier BLOCK evidence.
