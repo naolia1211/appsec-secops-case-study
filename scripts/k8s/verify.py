@@ -41,7 +41,7 @@ def execute(namespace, name, program):
 
 
 def http(namespace, name, target):
-    # This program runs inside the selected pod, so NetworkPolicy is exercised.
+    # Run inside the pod to exercise NetworkPolicy.
     program = """import json, urllib.request, urllib.error
 try:
     with urllib.request.urlopen(TARGET, timeout=3) as response:

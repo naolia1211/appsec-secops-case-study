@@ -4,7 +4,6 @@ from scripts.security_gate import evaluate, main
 
 
 def report(*severities):
-    # Synthetic unit-test input, never presented as actual scan evidence.
     return {"results": [{"extra": {"severity": s}} for s in severities], "errors": [], "paths": {"scanned": ["app/__init__.py"]}}
 
 

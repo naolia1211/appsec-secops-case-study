@@ -4,7 +4,6 @@ from scripts.container_gate import evaluate, main
 
 
 def report(*vulns):
-    # Synthetic unit-test input, never presented as actual scan evidence.
     return {"SchemaVersion": 2, "ArtifactType": "container_image", "Results": [{"Target": "image.tar", "Class": "os-pkgs", "Vulnerabilities": list(vulns) or None}, {"Target": "Python", "Class": "lang-pkgs"}]}
 
 

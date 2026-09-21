@@ -8,7 +8,6 @@ def finding(severity, status="FAIL"):
 
 
 def report(target, *findings):
-    # Synthetic unit-test input, never presented as actual scan evidence.
     return {"SchemaVersion": 2, "Results": [{"Target": t, "Class": "config", "MisconfSummary": {"Successes": 1}, "Misconfigurations": list(findings) if t == target else []} for t in GATED_TARGETS | {target}]}
 
 

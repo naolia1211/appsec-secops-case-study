@@ -4,7 +4,6 @@ from scripts.sca_gate import evaluate, main
 
 
 def report(*fix_versions_per_vuln):
-    # Synthetic unit-test input, never presented as actual scan evidence.
     vulns = [{"id": f"VULN-{i}", "fix_versions": versions} for i, versions in enumerate(fix_versions_per_vuln)]
     return {"dependencies": [{"name": "Flask", "version": "1.0", "vulns": vulns}, {"name": "waitress", "version": "3.0.2", "vulns": []}]}
 

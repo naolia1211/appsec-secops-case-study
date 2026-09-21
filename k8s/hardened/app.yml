@@ -16,7 +16,7 @@ metadata:
   name: appsec-demo
   namespace: appsec-hardened
 automountServiceAccountToken: false
-# The API does not call Kubernetes: no RoleBinding is needed.
+# No Kubernetes API access required.
 ---
 apiVersion: apps/v1
 kind: Deployment

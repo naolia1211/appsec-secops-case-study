@@ -9,7 +9,6 @@ services:
     volumes:
       - ./reports/sca:/workspace/reports/sca
   gate:
-    # container_gate.py / iac_gate.py are pure standard library: no custom image needed.
     image: python:3.12-slim
     working_dir: /workspace
     volumes:
