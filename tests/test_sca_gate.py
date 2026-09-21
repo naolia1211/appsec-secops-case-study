@@ -6,10 +6,10 @@ from scripts.sca_gate import evaluate, main
 def report(*fix_versions_per_vuln):
     # Synthetic unit-test input, never presented as actual scan evidence.
     vulns = [{"id": f"VULN-{i}", "fix_versions": versions} for i, versions in enumerate(fix_versions_per_vuln)]
-    return {"dependencies": [{"name": "example", "version": "1.0", "vulns": vulns}]}
+    return {"dependencies": [{"name": "Flask", "version": "1.0", "vulns": vulns}, {"name": "waitress", "version": "3.0.2", "vulns": []}]}
 
 
-@pytest.mark.parametrize("fix_versions_per_vuln, code", [((), 0), (([],), 0), ((["1.0.1"],), 1), (([], ["2.0"]), 1)])
+@pytest.mark.parametrize("fix_versions_per_vuln, code", [((), 0), (([],), 1), ((["1.0.1"],), 1), (([], ["2.0"]), 1)])
 def test_policy(fix_versions_per_vuln, code):
     assert evaluate(report(*fix_versions_per_vuln))[0] == code
 
@@ -28,5 +28,5 @@ def test_cli(tmp_path, capsys):
     path.write_text(json.dumps(report(["1.0.1"])), encoding="utf-8")
     assert main([str(path)]) == 1
     path.write_text(json.dumps(report([])), encoding="utf-8")
-    assert main([str(path)]) == 0
-    assert "PASS" in capsys.readouterr().out
+    assert main([str(path)]) == 1
+    assert "BLOCK" in capsys.readouterr().out

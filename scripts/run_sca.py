@@ -15,7 +15,10 @@ def main():
     command = [sys.executable, "-m", "pip_audit", "-r", "requirements.txt", "--format", "json", "--output", str(report)]
     # pip-audit's own exit code does not distinguish "vulnerabilities found" from
     # "dependency resolution failed"; the gate below decides policy from the report itself.
-    subprocess.run(command, check=False)
+    result = subprocess.run(command, check=False)
+    if result.returncode not in (0, 1):
+        print("BLOCK: scanner execution failed")
+        return 2
     if not report.exists():
         print("BLOCK: pip-audit did not produce a report (dependency resolution likely failed)")
         return 2

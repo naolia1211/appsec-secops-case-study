@@ -151,3 +151,7 @@ scanning.
 - Registry rules require network access and may change; transitive dependencies and the base image tag are not fully locked.
 - 152 OS-level container findings (Debian 13 "trixie") currently have no published fix and are accepted/monitored rather than blocked; see [Task 3](docs/task3.md#limitations).
 - Branch protection is not configured. A failed gate stops deployment but does not itself prevent merging.
+
+Task 3 now blocks deployment on fixable or HIGH/CRITICAL/UNKNOWN image findings.
+See [exception review](docs/security-exceptions.md). Historical green runs predate
+this policy. No risk exceptions are accepted by default.

@@ -9,18 +9,12 @@ export MSYS_NO_PATHCONV=1
 mkdir -p reports/sca/last-run reports/container/last-run reports/iac/last-run
 rm -rf reports/container/last-run/* reports/iac/last-run/*
 
-docker compose build app
 docker compose -f docker-compose.security.yml build sca
-
-image=appsec-demo:local
-if [[ -f reports/task1/approved-image.json ]]; then
-  recorded=$(sed -n 's/.*"image"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' reports/task1/approved-image.json | head -1)
-  # Only trust the recorded approval if that image still exists locally;
-  # an older local run's record must never silently redirect the scan.
-  if [[ -n "$recorded" ]] && docker image inspect "$recorded" > /dev/null 2>&1; then
-    image="$recorded"
-  fi
-fi
+# Validate the approval record, then compare the current Docker image ID.
+image=$(docker compose -f docker-compose.security.yml run --rm -T gate python scripts/approved_image.py name)
+expected=$(docker compose -f docker-compose.security.yml run --rm -T gate python scripts/approved_image.py id)
+actual=$(docker image inspect "$image" --format '{{.Id}}')
+[[ "$actual" == "$expected" ]] || { echo "BLOCK: approved image changed; rerun Task 1"; exit 2; }
 
 echo "=== SCA (pip-audit) ==="
 docker compose -f docker-compose.security.yml run --rm sca
@@ -31,7 +25,7 @@ docker compose -f docker-compose.security.yml run --rm trivy \
   image --input /workspace/reports/container/last-run/image.tar --format json \
   --output /workspace/reports/container/last-run/trivy-image.json --quiet
 docker compose -f docker-compose.security.yml run --rm gate \
-  python scripts/container_gate.py reports/container/last-run/trivy-image.json
+  python scripts/container_gate.py reports/container/last-run/trivy-image.json --expected-image-id "$expected"
 
 echo "=== IaC scan (Trivy config: Dockerfile + k8s manifests) ==="
 docker compose -f docker-compose.security.yml run --rm trivy \

@@ -63,7 +63,7 @@ jobs:
           retention-days: 7
   deploy_mock:
     name: Deploy mock
-    needs: security
+    needs: task3_scans
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -123,8 +123,9 @@ jobs:
             image --input /workspace/image.tar --format json \
             --output /workspace/reports/container/last-run/trivy-image.json --quiet
           docker compose -f docker-compose.security.yml run --rm gate \
-            python scripts/container_gate.py reports/container/last-run/trivy-image.json
+            python scripts/container_gate.py reports/container/last-run/trivy-image.json --expected-image-id "$(docker image inspect appsec-demo:${{ github.sha }} --format '{{.Id}}')"
       - name: IaC scan (Trivy config)
+        if: ${{ !cancelled() }}
         run: |
           docker compose -f docker-compose.security.yml run --rm trivy \
             config --format json --output /workspace/reports/iac/last-run/trivy-config.json \

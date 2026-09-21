@@ -5,14 +5,14 @@ from scripts.container_gate import evaluate, main
 
 def report(*vulns):
     # Synthetic unit-test input, never presented as actual scan evidence.
-    return {"Results": [{"Target": "image.tar", "Vulnerabilities": list(vulns) or None}]}
+    return {"SchemaVersion": 2, "ArtifactType": "container_image", "Results": [{"Target": "image.tar", "Class": "os-pkgs", "Vulnerabilities": list(vulns) or None}, {"Target": "Python", "Class": "lang-pkgs"}]}
 
 
 def vuln(severity, fixed=None):
     return {"PkgName": "example", "InstalledVersion": "1.0", "VulnerabilityID": "CVE-0000-0000", "Severity": severity, "FixedVersion": fixed}
 
 
-@pytest.mark.parametrize("vulns, code", [((), 0), ((vuln("HIGH"),), 0), ((vuln("LOW", "1.0.1"),), 1), ((vuln("CRITICAL", "2.0"), vuln("HIGH")), 1)])
+@pytest.mark.parametrize("vulns, code", [((), 0), ((vuln("HIGH"),), 1), ((vuln("LOW", "1.0.1"),), 1), ((vuln("CRITICAL", "2.0"), vuln("HIGH")), 1)])
 def test_policy(vulns, code):
     assert evaluate(report(*vulns))[0] == code
 
@@ -31,5 +31,5 @@ def test_cli(tmp_path, capsys):
     path.write_text(json.dumps(report(vuln("CRITICAL", "2.0"))), encoding="utf-8")
     assert main([str(path)]) == 1
     path.write_text(json.dumps(report(vuln("HIGH"))), encoding="utf-8")
-    assert main([str(path)]) == 0
-    assert "PASS" in capsys.readouterr().out
+    assert main([str(path)]) == 1
+    assert "BLOCK" in capsys.readouterr().out

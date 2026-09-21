@@ -3,3 +3,5 @@ WORKDIR /workspace
 COPY requirements.txt requirements-sca.txt ./
 RUN pip install --no-cache-dir -r requirements-sca.txt
 COPY scripts ./scripts
+
+COPY security ./security

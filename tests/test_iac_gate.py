@@ -1,6 +1,6 @@
 import json
 import pytest
-from scripts.iac_gate import evaluate, main
+from scripts.iac_gate import evaluate, main, GATED_TARGETS
 
 
 def finding(severity, status="FAIL"):
@@ -9,7 +9,7 @@ def finding(severity, status="FAIL"):
 
 def report(target, *findings):
     # Synthetic unit-test input, never presented as actual scan evidence.
-    return {"Results": [{"Target": target, "Misconfigurations": list(findings) or None}]}
+    return {"SchemaVersion": 2, "Results": [{"Target": t, "Class": "config", "MisconfSummary": {"Successes": 1}, "Misconfigurations": list(findings) if t == target else []} for t in GATED_TARGETS | {target}]}
 
 
 @pytest.mark.parametrize(
