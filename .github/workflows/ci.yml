@@ -119,11 +119,12 @@ jobs:
           docker compose -f docker-compose.security.yml run --rm sca
       - name: Container image scan (Trivy)
         run: |
+          config_id=$(python3 scripts/image_archive.py image.tar appsec-demo:${{ github.sha }})
           docker compose -f docker-compose.security.yml run --rm trivy \
             image --input /workspace/image.tar --format json \
             --output /workspace/reports/container/last-run/trivy-image.json --quiet
           docker compose -f docker-compose.security.yml run --rm gate \
-            python scripts/container_gate.py reports/container/last-run/trivy-image.json --expected-image-id "$(docker image inspect appsec-demo:${{ github.sha }} --format '{{.Id}}')"
+            python scripts/container_gate.py reports/container/last-run/trivy-image.json --expected-image-id "$config_id"
       - name: IaC scan (Trivy config)
         if: ${{ !cancelled() }}
         run: |

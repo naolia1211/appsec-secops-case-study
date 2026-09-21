@@ -21,11 +21,13 @@ docker compose -f docker-compose.security.yml run --rm sca
 
 echo "=== Container image scan (Trivy) - ${image} ==="
 docker save "${image}" -o reports/container/last-run/image.tar
+[[ "$(docker image inspect "$image" --format '{{.Id}}')" == "$expected" ]] || { echo "BLOCK: image changed during export"; exit 2; }
+config_id=$(docker compose -f docker-compose.security.yml run --rm -T gate python scripts/image_archive.py reports/container/last-run/image.tar "$image")
 docker compose -f docker-compose.security.yml run --rm trivy \
   image --input /workspace/reports/container/last-run/image.tar --format json \
   --output /workspace/reports/container/last-run/trivy-image.json --quiet
 docker compose -f docker-compose.security.yml run --rm gate \
-  python scripts/container_gate.py reports/container/last-run/trivy-image.json --expected-image-id "$expected"
+  python scripts/container_gate.py reports/container/last-run/trivy-image.json --expected-image-id "$config_id"
 
 echo "=== IaC scan (Trivy config: Dockerfile + k8s manifests) ==="
 docker compose -f docker-compose.security.yml run --rm trivy \
