@@ -1,0 +1,10 @@
+{
+  "run": "https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35607540442",
+  "commit": "98c9861819198d9ce860b97360fe6e3ac53c4dea",
+  "decision": "BLOCK: 44 HIGH and 2 UNKNOWN; Deploy mock and Kubernetes skipped",
+  "sha256": {
+    "pip-audit.json": "126289ebb3b6f1fd4e22e73f6da85b58fc82c724d2eb356eb923f29636fec215",
+    "trivy-image.json": "810b41e4ec2b0177aa84483e2890625f845094556bb876330f53a8bd28ed0a8b",
+    "trivy-config.json": "b572c327c11bdafd47a2d66e53c2cbcb1905a15e6fabec1fc93596df7e4affd1"
+  }
+}

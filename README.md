@@ -65,6 +65,8 @@ Each job requires the previous job to succeed.
 | Build | Build `appsec-demo:<commit SHA>` and upload the image archive |
 | Test | Run API and security-gate unit tests |
 | Security | Scan Python source, evaluate JSON, publish the approved image artifact |
+| Task 3 | SCA, image and IaC scans; risk policy must pass before deployment |
+| Kubernetes | Verify hardening after Deploy mock |
 | Deploy mock | Load the approved image, start a container, verify HTTP responses and collect logs |
 
 Deploy mock verifies `/health` and `/api/greeting`, including their JSON contents.
@@ -94,7 +96,7 @@ Severity is supplied by the rule; it is not a CVSS score.
 
 | Case | Expected result | GitHub Actions |
 | --- | --- | --- |
-| Clean source | All four jobs pass | [PASS run](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35487648462) |
+| Clean source | Historical Task 1 jobs pass | [PASS run](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35487648462) |
 | Intentional eval fixture | Security fails; Deploy mock is skipped | [BLOCK run](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35487650775) |
 
 The fixture exists only on the demo branch and must not be merged. Both reports
@@ -149,9 +151,12 @@ scanning.
 
 - SAST covers the selected source files and rules, not dependency or container vulnerabilities; those are Task 3's job.
 - Registry rules require network access and may change; transitive dependencies and the base image tag are not fully locked.
-- 152 OS-level container findings (Debian 13 "trixie") currently have no published fix and are accepted/monitored rather than blocked; see [Task 3](docs/task3.md#limitations).
+- Historical image reports contain 44 HIGH and 2 UNKNOWN unfixed OS findings. These block deployment under the current policy until remediated or explicitly excepted.
 - Branch protection is not configured. A failed gate stops deployment but does not itself prevent merging.
 
 Task 3 now blocks deployment on fixable or HIGH/CRITICAL/UNKNOWN image findings.
 See [exception review](docs/security-exceptions.md). Historical green runs predate
 this policy. No risk exceptions are accepted by default.
+
+Current policy verification: [run 35607540442](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35607540442)
+(Build/Test/SAST/SCA pass, image gate blocks 46 findings, IaC passes, deployment and Kubernetes skip).

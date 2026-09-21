@@ -33,3 +33,7 @@ now belongs to Deploy mock, after Security.
 
 Download SAST/deployment artifacts within 30 days, and the approved image within 7 days.
 Documentation-only commits after these runs do not change the verified application or workflow.
+
+## Task 3 policy verification
+
+Commit `98c9861819198d9ce860b97360fe6e3ac53c4dea`, run [35607540442](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35607540442): Build, 66 tests and SAST passed. SCA passed. Container gate blocked 44 HIGH and 2 UNKNOWN findings with exit 1. IaC passed; Deploy mock and Kubernetes were skipped. The task3-scans artifact contains all three reports. This is a verified BLOCK, not a successful release. No exceptions were added to turn the run green.
