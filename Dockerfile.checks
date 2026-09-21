@@ -6,3 +6,5 @@ COPY app ./app
 COPY scripts ./scripts
 COPY tests ./tests
 COPY .semgrep.yml pytest.ini ./
+
+COPY security ./security
