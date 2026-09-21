@@ -16,29 +16,19 @@ The repository integrates CI/CD security controls across three layers:
     image and infrastructure-as-code scanning with blocking risk
     policies.
 
-The same approved application image is promoted through the pipeline
-rather than rebuilt between security stages.
+## Delivery flow
 
-``` text
-Build once
-    |
-    v
-Unit tests
-    |
-    v
-SAST + policy gate
-    |
-    v
-SCA + container + IaC gates
-    |
-    v
-Approved image
-    |
-    v
-Deploy mock
-    |
-    v
-Kubernetes hardening + runtime verification
+The application image is built once and promoted through the pipeline. Security
+checks determine whether the artifact can continue to deployment.
+
+```mermaid
+flowchart LR
+    A[Build] --> B[Unit tests]
+    B --> C[SAST]
+    C --> D[SCA / Image / IaC]
+    D --> E[Approved artifact]
+    E --> F[Mock deploy]
+    F --> G[Kubernetes verification]
 ```
 
 Security controls fail closed: a blocking finding, scanner failure,
@@ -152,7 +142,7 @@ runner, not a persistent public service.
 
 ## Security design decisions
 
-The pipeline follows four security principles:
+A few design choices are intentional:
 
 -   **Build once, promote the same artifact.** Security stages evaluate
     the same application image that is eventually deployed instead of
@@ -292,18 +282,13 @@ bash scripts/demo.sh
 bash scripts/demo_task3.sh
 ```
 
-Each gate applies an independently justified release policy:
+Release policy is implemented by
+[`sca_gate.py`](scripts/sca_gate.py),
+[`container_gate.py`](scripts/container_gate.py), and
+[`iac_gate.py`](scripts/iac_gate.py).
 
--   [`scripts/sca_gate.py`](scripts/sca_gate.py) evaluates dependency
-    findings.
--   [`scripts/container_gate.py`](scripts/container_gate.py) evaluates
-    the approved container image.
--   [`scripts/iac_gate.py`](scripts/iac_gate.py) evaluates Dockerfile
-    and Kubernetes IaC findings.
-
-See [Task 3](docs/task3.md) for the complete policy table, findings
-before and after remediation, and instructions for reproducing a BLOCK
-on the `codex/demo-dependency-block` fixture branch.
+See [Task 3](docs/task3.md) for the policy rationale, remediation evidence,
+and BLOCK reproduction steps.
 
 ### Verified remediation
 
