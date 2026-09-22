@@ -1,169 +1,285 @@
-# Task 3 — SCA, container image, and IaC scanning
+# Task 3 — SCA, Container and IaC Security
 
-Three of the three optional areas are covered, not the required minimum of two:
-[pip-audit](https://pypi.org/project/pip-audit/) for dependency scanning (SCA),
-[Trivy](https://aquasecurity.github.io/trivy/) for the built container image, and
-Trivy's config scanner for IaC — reusing the Task 1 image and the Task 2 manifests,
-as the case study explicitly allows.
+Task 3 covers all three optional security areas in the case study:
+
+- **SCA:** `pip-audit` for Python dependencies.
+- **Container scanning:** Trivy for the approved application image.
+- **IaC scanning:** Trivy config scanning for the Dockerfile and Kubernetes manifests.
+
+The scans reuse the application artifact and deployment configuration from
+Tasks 1 and 2.
 
 ## Run
 
-Requires Docker Engine with Linux containers and Compose v2. The full local
-pipeline already includes Task 3:
+Requires Docker Engine with Linux container support and Docker Compose v2.
+
+The full local pipeline already includes Task 3:
 
 ```bash
 bash scripts/demo.sh
 ```
 
-To rerun only Task 3 after a successful Task 1 build/SAST approval:
+To rerun only Task 3 after Task 1 has successfully produced an approved image:
 
 ```bash
 bash scripts/demo_task3.sh
 ```
 
-Missing or changed approval blocks; the scan never falls back to another image.
-Docker Desktop and Trivy can expose different kinds of digest, so the scanner's
-config digest is checked against the exact config bytes in the Docker save archive.
-The archive's tag must match the approved image and Docker identity is checked
-before and after export.
+Task 3 does not select or rebuild a different application image when approval
+is missing. A missing, changed or mismatched approved artifact causes the
+corresponding gate to fail.
 
-Trivy runs as the pinned upstream image `aquasec/trivy@sha256:62b1e65...` (see
-`docker-compose.security.yml`), not a custom build, since Aqua already publishes
-one. pip-audit needed its own image (`Dockerfile.sca`): pinning it alongside
-Semgrep in `Dockerfile.checks` failed to resolve — `semgrep==1.136.0` requires
-`tomli~=2.0.1`, `pip-audit==2.10.1` requires `tomli>=2.2.1` — so SCA gets a
-separate, smaller toolbox instead of loosening either pin.
+## Tools
 
-## Why these tools, and why three
+### SCA
 
-Semgrep (Task 1) only sees code the team wrote. It cannot see a vulnerable pinned
-package, a vulnerable OS package baked into the base image, or a Kubernetes
-manifest that grants more than it should — three different origins the case study
-asks to be told apart. pip-audit resolves the actual dependency tree from
-`requirements.txt` against the PyPA advisory database. Trivy covers both remaining
-gaps with one binary: `trivy image` for the built artifact (OS packages and
-installed Python packages together) and `trivy config` for Dockerfile and
-Kubernetes manifests, which doubles as a second, independent check on the Task 2
-hardening claims.
+`pip-audit` checks the Python dependencies resolved from `requirements.txt`
+against the PyPA advisory database.
 
-## Scan order and gate policy
+It runs from the dedicated `Dockerfile.sca` image. SCA is separated from the
+Semgrep toolbox because the pinned versions of the two tools require
+incompatible `tomli` versions.
 
-Build, Test and SAST run first. Task 3 scans the approved image, and Deploy mock
-waits for Task 3; Kubernetes follows deployment. Local demo uses the same order.
-A changed/missing local approval or mismatched scanned image blocks the demo.
+### Container scanning
 
-See [exception policy](security-exceptions.md) for exact decisions and PR review.
-Empty scan scopes, missing required IaC targets and malformed reports block.
-All pip-audit advisories require disposition. Container findings block if fixable
-or HIGH/CRITICAL/UNKNOWN. IaC HIGH/CRITICAL findings in required targets block.
-No exceptions are accepted by default. Historical reports contain 44 HIGH and
-2 UNKNOWN OS findings; these now block, rather than silently passing without fixes.
+Trivy scans the approved application image for both OS packages and installed
+Python packages.
 
-## Findings and remediation
+The Trivy image is pinned in `docker-compose.security.yml`.
 
-| Area | Before | After | Fix |
-| --- | --- | --- | --- |
-| Container, Python packages | 7 findings (1 Flask, 6 pip) | 0 | Multi-stage `Dockerfile`; final stage never installs pip, and the base image's own pip/setuptools are removed |
-| Container, OS packages (Debian 13 "trixie") | 152 findings, 44 HIGH, none with a published fix | Unchanged | Blocked under current policy; requires risk assessment |
-| SCA (`requirements.txt`) | 1 actionable (Flask) | 0 | Same Flask bump |
-| IaC, `Dockerfile` | 0 | 0 | Already clean |
-| IaC, `k8s/hardened/*` | 0 | 0 | Already clean — Trivy independently confirms the Task 2 hardening |
-| IaC, `k8s/insecure/app.yml` (reference only, not gated) | 19 findings, 2 CRITICAL, 3 HIGH | Unchanged (fixture, not remediated) | Task 2's hardened manifest already addresses each one |
+The container gate also validates image identity. The image represented by the
+scan report must match the artifact previously approved by the pipeline.
 
-### Root cause: the Flask dependency finding
+### IaC scanning
 
-`CVE-2026-27205` (`PYSEC-2026-2151`): Flask omits `Vary: Cookie` on some code paths
-that only read session keys, so a caching proxy in front of the app could serve one
-user's cached response to another. Root cause is a stale pin, not application code.
-Fix: `Flask==3.1.2` to `Flask==3.1.3` in `requirements.txt`. Verified by both
-pip-audit and Trivy showing zero Flask findings after the bump.
+Trivy config scanning checks the Dockerfile and Kubernetes manifests.
 
-### Root cause: pip shipping in the runtime image
+This provides an independent static check on the Kubernetes hardening performed
+in Task 2.
 
-Six of the seven container findings were `pip` itself, not the application.
-`python:3.12-slim` installs pip so `pip install` works during the build, but the
-running Flask process never imports or executes it. Root cause is a single-stage
-Dockerfile that copies the entire base install, build tooling included, into the
-image that ships. Fix: build dependencies into `/build/deps` in a `builder` stage,
-copy only that directory into the final stage, and remove the base image's own
-`pip`/`setuptools` from the final stage explicitly — this removes the CVE surface
-outright rather than chasing each patch version. `run.py` calls `waitress.serve()` directly because dependencies are installed into a target directory; the generated console script is not on the runtime PATH.
+## Scan order and release policy
 
-### Code vs. dependency vs. misconfiguration vs. base image
+The release path is:
 
-The case study asks these to be told apart, and the four categories map onto four
-different fixes:
+```text
+Build
+  -> Test
+  -> SAST
+  -> SCA / Container / IaC gates
+  -> Deploy Mock
+  -> Kubernetes Verification
+```
 
-- **Code** (Task 1, Semgrep): a flaw in logic the team wrote — `eval`, `shell=True`,
-  `debug=True`. Fixed in `app/` or `scripts/`.
-- **Dependency** (pip-audit, and Trivy's `lang-pkgs` results): a known CVE in a
-  pinned third-party package. Fixed in `requirements.txt`.
-- **Base image** (Trivy's `os-pkgs` results): a known CVE in an OS package that
-  arrived with `FROM python:3.12-slim`, not through anything the project pinned.
-  Fixed by changing the base image tag or waiting for the distro to publish a
-  patched package — not by editing application code or `requirements.txt`.
-- **Misconfiguration** (Trivy `config`): the code and dependencies could be
-  flawless and the deployment would still be wrong — a root container, a wildcard
-  RBAC role. Fixed in the manifest, not the application.
+The three Task 3 gates are implemented in:
 
-The 152 unfixed OS-package findings sit in the base-image category: real, but nothing
-in this repository put them there, and nothing in this repository can patch them
-directly.
+```text
+scripts/sca_gate.py
+scripts/container_gate.py
+scripts/iac_gate.py
+```
 
-## Demo: reproducing a BLOCK
+The gates use fail-closed behavior for missing, malformed or incomplete
+security evidence.
+
+Current policy includes:
+
+- all `pip-audit` advisories require disposition;
+- fixable or HIGH/CRITICAL/UNKNOWN container findings block release;
+- required IaC targets must be present in the report;
+- HIGH/CRITICAL IaC findings in required targets block release;
+- no risk exception is accepted by default.
+
+The detailed exception model is documented in
+[`security-exceptions.md`](security-exceptions.md).
+
+## Finding 1 — Flask dependency
+
+`pip-audit` identified one actionable application dependency finding:
+
+```text
+Flask 3.1.2
+PYSEC-2026-2151 / CVE-2026-27205
+```
+
+The root cause was the pinned Flask version in `requirements.txt`, not
+application logic or the container base image.
+
+Remediation:
+
+```text
+Flask 3.1.2 -> Flask 3.1.3
+```
+
+After the version update, `pip-audit` no longer reports the Flask finding.
+
+This finding is also visible in the historical Trivy language-package result.
+
+## Finding 2 — Python packages in the runtime image
+
+The historical container scan contained seven Python-package findings:
+
+```text
+1 Flask finding
+6 pip findings
+```
+
+The Flask finding was addressed by the dependency update above.
+
+The other six findings were associated with `pip` shipped in the runtime
+image. The running Flask application does not require `pip` or `setuptools`.
+
+The Dockerfile was changed to a multi-stage build. Dependencies are prepared in
+the builder stage and only the required runtime content is copied into the
+final image. Unnecessary `pip` and `setuptools` packages are removed from the
+runtime image.
+
+The subsequent scan contains zero Python-package findings.
+
+## Finding 3 — OS packages in the base image
+
+A later container scan of the Debian-based runtime image reported:
+
+```text
+152 OS-package findings
+44 HIGH
+2 UNKNOWN
+```
+
+The findings came from OS packages inherited from the Debian-based Python
+runtime image rather than from Flask application code.
+
+Under the current policy, the 44 HIGH and 2 UNKNOWN findings block release.
+They were not suppressed and no risk exception was added.
+
+The runtime image was changed to the official Python 3.12 Alpine image and
+pinned by digest in both build stages. The scanned runtime OS is Alpine 3.24.2.
+
+After rebuilding and rescanning, the previous Debian OS-package findings are no
+longer present. The current evidence set contains zero OS and Python-package
+findings.
+
+Changing the base image also required compatibility verification. The
+application API, UID 10001 and all 33 Kubernetes runtime checks pass on the
+remediated image.
+
+## IaC result
+
+Trivy config scanning is also used against the Dockerfile and Kubernetes
+manifests.
+
+Current results:
+
+| Target | Result |
+| --- | --- |
+| Dockerfile | 0 findings |
+| `k8s/hardened/` | 0 findings |
+| `k8s/insecure/app.yml` | 19 findings, including 2 CRITICAL and 3 HIGH |
+
+`k8s/insecure/` is an intentional Task 2 baseline and is not the deployment
+configuration approved for release. The hardened manifests address the
+misconfigurations and are independently checked by Trivy.
+
+## BLOCK and PASS evidence
+
+### Historical BLOCK
+
+GitHub Actions run:
+
+https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35607540442
+
+In this run:
+
+- Build, Test and SAST pass.
+- SCA passes.
+- IaC passes.
+- the container gate blocks the image because 44 HIGH and 2 UNKNOWN OS
+  findings exceed the release policy;
+- Deploy Mock and Kubernetes Verification do not run.
+
+### Remediated PASS
+
+GitHub Actions run:
+
+https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35608731394
+
+Commit:
+
+```text
+b62e3aa1e33a7d2be0b984aeec8ff7e4319ff117
+```
+
+In this run:
+
+- SCA passes;
+- container scanning passes;
+- IaC scanning passes;
+- no risk exception is used;
+- Deploy Mock continues;
+- all 33 Kubernetes runtime checks pass.
+
+Raw CI evidence for the PASS run is stored under:
+
+```text
+reports/task3/evidence/ci-35608731394/
+```
+
+Historical BLOCK evidence is retained under:
+
+```text
+reports/task3/evidence/ci-35607540442/
+```
+
+## Reproduce a dependency BLOCK
+
+A separate fixture branch retains the vulnerable Flask version for negative
+testing:
 
 ```bash
 git switch codex/demo-dependency-block
-bash scripts/demo.sh
-bash scripts/demo_task3.sh; echo $?
+bash scripts/demo.sh; echo $?
 git switch main
 ```
 
-The fixture branch reverts `Flask==3.1.2` in `requirements.txt` only — the exact
-version this task found and fixed on `main`. `sca_gate.py` and `container_gate.py`
-both fail closed with exit 1 (`git status` before switching back if uncommitted
-changes to `reports/` exist). It must never be merged.
+The fixture changes the Flask dependency back to version 3.1.2. The SCA gate
+is expected to return a non-zero exit code and prevent the release path from
+continuing.
 
-## Evidence
+The fixture branch exists only to reproduce the negative test and must not be
+merged into `main`.
 
-Each area follows the same `evidence/` (committed) vs. `last-run/` (gitignored,
-regenerated by `demo_task3.sh` and CI) split Task 2 already uses for
-`reports/k8s/`. `reports/sca/evidence/local-2026-09-21/pip-audit-before.json` and
-`reports/container/evidence/local-2026-09-21/trivy-image-before.json` are real
-pip-audit and Trivy output from a clean worktree checked out at the pre-Task-3
-commit (`273cfb8`); the `-after.json` files are the same tools against the current
-tree, after the Flask/Dockerfile fix — neither is synthesized.
-`reports/iac/evidence/local-2026-09-21/trivy-config.json` covers the whole
-repository in one run; `iac_gate.py`'s scope filter, not a second scan, is what
-separates the gated result from the `k8s/insecure` and toolbox-image reference
-findings.
+## Evidence layout
+
+Committed evidence is kept separately from regenerated local output.
+
+Historical pre-remediation evidence includes:
+
+```text
+reports/sca/evidence/local-2026-09-21/pip-audit-before.json
+reports/container/evidence/local-2026-09-21/trivy-image-before.json
+```
+
+These files represent the earlier Task 3 state and are retained as historical
+scan evidence.
+
+Current CI evidence should be used to determine the final remediated state,
+including the Alpine base-image remediation.
+
+Generated local results are stored under the corresponding `last-run/`
+directories and may be regenerated by the demo scripts.
 
 ## Limitations
 
-Historical PASS decisions used a weaker policy and are not current approvals.
-An unavailable patch is not sufficient risk acceptance: assess package use,
-exploit prerequisites, alternate base images, package removal and isolation.
-A PR-reviewed exception must be specific and expire. No production approver or
-branch protection is claimed by this single-maintainer lab.
+Security scan results are point-in-time evidence. Advisory databases and
+scanner rules can change after an image has passed.
 
-The local script stops on its first failed gate. CI preserves IaC evidence even
-if container scanning fails. Reports are time-specific; advisory databases change.
+A zero-finding result does not guarantee that the image will remain free of
+known vulnerabilities. The pinned base image therefore still requires regular
+rescanning and controlled updates.
 
-## Base-image remediation and current result
+An unavailable vendor patch is not treated automatically as risk acceptance.
+Production handling should consider exploitability, package use, compensating
+controls, alternate base images and formal exception approval.
 
-The Debian-based image was correctly blocked by the stricter policy: 44 HIGH and
-2 UNKNOWN findings. The application now builds and runs on the official Python
-3.12 Alpine image, pinned by digest in both stages. The scanned OS is Alpine
-3.24.2. Debian packages responsible for the old findings are no longer installed;
-package metadata is retained, scanners and the gate have not been weakened, and
-security/exceptions.json remains empty.
-
-The new image has zero OS and Python-package findings in run
-[35608731394](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35608731394),
-commit b62e3aa1e33a7d2be0b984aeec8ff7e4319ff117. SCA and IaC gates also pass.
-Raw reports and checksums are in reports/task3/evidence/ci-35608731394; the previous
-BLOCK remains in ci-35607540442. Runtime API, UID 10001 and all 33 local Kubernetes
-checks passed on the new image. This verifies the application used here; a base
-change needs new compatibility testing if native dependencies are added later.
-A zero-finding snapshot is not a permanent guarantee; keep rescanning and update
-the pinned base through a tested change.
+This case study does not claim production branch protection or independent
+risk approval. Those controls would be required around the release policy in a
+production environment.

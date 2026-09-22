@@ -2,353 +2,346 @@
 
 [![CI](https://github.com/naolia1211/appsec-secops-case-study/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/naolia1211/appsec-secops-case-study/actions/workflows/ci.yml?query=branch%3Amain)
 
-A security engineering case study demonstrating a gated software
-delivery pipeline from source code to a hardened Kubernetes workload.
+This repository contains an AppSec/SecOps case study built around one Flask
+application and one delivery flow from source code to Kubernetes.
 
-The repository integrates CI/CD security controls across three layers:
+The implementation covers:
 
--   **Task 1 - Secure CI/CD:** build, unit testing, SAST, policy
-    enforcement and controlled artifact promotion.
--   **Task 2 - Kubernetes Hardening:** least-privilege workload
-    configuration, RBAC validation, NetworkPolicy and runtime
-    verification.
--   **Task 3 - SCA / Container / IaC Security:** dependency, container
-    image and infrastructure-as-code scanning with blocking risk
-    policies.
+- **Task 1 - Secure CI/CD:** build, unit testing, Semgrep SAST and release gate.
+- **Task 2 - Kubernetes Hardening:** insecure/hardened manifests, RBAC,
+  NetworkPolicy, Pod Security Admission and runtime verification.
+- **Task 3 - SCA / Container / IaC Security:** dependency, container image and
+  configuration scanning with blocking policy gates.
 
 ## Delivery flow
 
-The application image is built once and promoted through the pipeline. Security
-checks determine whether the artifact can continue to deployment.
+The application image is built once and passed through the security stages
+before deployment.
 
 ```mermaid
 flowchart LR
     A[Build] --> B[Unit tests]
-    B --> C[SAST]
-    C --> D[SCA / Image / IaC]
+    B --> C[SAST + Gate]
+    C --> D[SCA / Image / IaC Gates]
     D --> E[Approved artifact]
     E --> F[Mock deploy]
     F --> G[Kubernetes verification]
 ```
 
-Security controls fail closed: a blocking finding, scanner failure,
-invalid security evidence, or failed policy evaluation prevents
-downstream deployment.
+A blocking finding, scanner failure, invalid report or failed policy evaluation
+prevents the dependent release jobs from continuing.
+
+## Requirements
+
+Local execution requires:
+
+- Docker Engine with Linux container support
+- Docker Compose v2
+- Git Bash or a Linux shell
+- approximately 4 GB of available memory for the Kubernetes lab
+
+Python is not required on the host for the main Docker-based demo.
 
 ## Quick start
 
-Requires Docker with Linux container support. Run from the repository
-root:
+Run the full local CI/security flow from the repository root:
 
-``` bash
-docker compose up --build -d
-curl --fail http://localhost:18080/health
-# {"status":"ok"}
+```bash
+bash scripts/demo.sh
 ```
 
-The API listens on host port `18080`, mapped to container port `8080`.
-Stop it with:
+This builds the application image, runs tests and security checks, and starts
+the application only if the required gates pass.
 
-``` bash
+The API is exposed on:
+
+```text
+http://localhost:18080
+```
+
+Example:
+
+```bash
+curl --fail http://localhost:18080/health
+```
+
+Expected response:
+
+```json
+{"status":"ok"}
+```
+
+Stop the local application with:
+
+```bash
 docker compose down
 ```
 
-  Endpoint                    Response
-  --------------------------- ------------------------------
-  `/`                         Service name and version
-  `/health`                   `{"status":"ok"}`
-  `/api/greeting?name=Linh`   `{"message":"Hello, Linh!"}`
-
-## Full local pipeline with Docker
-
-From Git Bash or a Linux shell, run:
-
-``` bash
-bash scripts/demo.sh
-```
-
-Docker Compose v2 builds the application and check images, runs tests
-and SAST, then starts the application only if the security gate passes.
-Python is installed inside the check image; no host Python is required.
-The initial run downloads packages and registry rules.
-
-The SAST JSON report is written to `reports/sast/semgrep.json`. The
-local application stays available on port `18080` until
-`docker compose down`. GitHub Actions uses an ephemeral mock deployment
-and removes its container when the job ends.
-
-## Development
-
-Requires Python 3.12. The commands below use Git Bash on Windows:
-
-``` bash
-python -m venv .venv
-source .venv/Scripts/activate
-python -m pip install -r requirements-dev.txt -r requirements-security.txt
-python -m pytest -q
-python scripts/run_sast.py
-```
-
-On Linux, activate the environment with:
-
-``` bash
-source .venv/bin/activate
-```
-
-In PowerShell, use:
-
-``` powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-Use `curl.exe` instead of the PowerShell `curl` alias for the HTTP
-examples.
-
 ## Pipeline
 
-The [workflow](.github/workflows/ci.yml) runs on pushes, pull requests
-and manual dispatch. Each downstream stage requires its prerequisite
-security and functional checks to succeed.
+The GitHub Actions workflow is defined in:
 
-  -----------------------------------------------------------------------
-  Job                                 Check or output
-  ----------------------------------- -----------------------------------
-  Build                               Build `appsec-demo:<commit SHA>`
-                                      and upload the image archive
+```text
+.github/workflows/ci.yml
+```
 
-  Test                                Run API and security-gate unit
-                                      tests
+The main jobs are:
 
-  Security                            Scan Python source, evaluate SAST
-                                      policy, and publish the approved
-                                      image artifact
+| Job | Purpose |
+| --- | --- |
+| Build | Build `appsec-demo:<commit SHA>` and publish the image archive |
+| Test | Run application and security-control unit tests |
+| Security | Run Semgrep and evaluate the SAST release policy |
+| Task 3 | Run SCA, container and IaC security gates |
+| Deploy mock | Load the approved image and verify application responses |
+| Kubernetes hardening | Deploy the approved image to the local K3s lab and run runtime checks |
 
-  Task 3                              Run SCA, container image and IaC
-                                      security gates
+The same application image is promoted through the pipeline instead of being
+rebuilt after the security checks.
 
-  Deploy mock                         Load the approved image, start a
-                                      container, verify HTTP responses
-                                      and collect logs
+## Task 1 - Secure CI/CD and SAST
 
-  Kubernetes hardening                Deploy the approved image to the
-                                      local K3s lab and verify runtime
-                                      hardening controls
-  -----------------------------------------------------------------------
+Task 1 uses Semgrep to scan Python source code in `app/` and `scripts/`.
 
-Deploy mock verifies `/health` and `/api/greeting`, including their JSON
-contents. Readiness checks have bounded retries, and the container is
-removed after the check. This is an ephemeral deployment on the CI
-runner, not a persistent public service.
+The scan uses the local rules in:
 
-## Security design decisions
+```text
+.semgrep.yml
+```
 
-A few design choices are intentional:
+together with Semgrep's `p/python` ruleset.
 
--   **Build once, promote the same artifact.** Security stages evaluate
-    the same application image that is eventually deployed instead of
-    rebuilding it later.
--   **Separate detection from policy.** Scanners produce evidence;
-    dedicated gates decide whether that evidence is acceptable for
-    release.
--   **Fail closed.** Scanner failures, malformed reports and unknown
-    security states block downstream deployment rather than silently
-    passing.
--   **Verify controls at runtime.** Kubernetes hardening is validated
-    against the running workload instead of relying only on static
-    manifest inspection.
+The SAST result is evaluated by:
 
-## Task 1 - SAST and security gate
+```text
+scripts/security_gate.py
+```
 
-[`scripts/run_sast.py`](scripts/run_sast.py) scans `app/` and `scripts/`
-with the local [rules](.semgrep.yml) and Semgrep's `p/python` ruleset.
-The local rules cover dynamic evaluation, shell execution, debug mode
-and weak hashes.
+Current policy:
 
-[`scripts/security_gate.py`](scripts/security_gate.py) parses
-`reports/sast/semgrep.json` and applies this policy:
+| SAST result | Decision |
+| --- | --- |
+| One or more ERROR findings | BLOCK |
+| WARNING / INFO only | PASS; findings remain in the report |
+| No findings | PASS |
+| Missing/invalid report, scanner error or unknown severity | BLOCK |
 
-  -----------------------------------------------------------------------
-  Condition               Decision                Exit code
-  ----------------------- ----------------------- -----------------------
-  One or more ERROR       Block                   1
-  findings                                        
+The gate is fail-closed when the scan result cannot be evaluated reliably.
 
-  WARNING / INFO only, or Pass; retain findings   0
-  no findings             in report               
+### Task 1 evidence
 
-  Invalid report, scan    Block                   2
-  errors, unknown                                 
-  severity or no scanned                          
-  files                                           
-  -----------------------------------------------------------------------
+Historical SAST BLOCK:
 
-The scanner runs without `--error` so finding policy stays in the gate.
-The wrapper also blocks on scanner process failure and removes any old
-report before scanning. Severity is supplied by the rule; it is not a
-CVSS score.
+https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35487650775
 
-### Task 1 verification
+Historical SAST PASS:
 
-  ---------------------------------------------------------------------------------------------------------------------------------------
-  Case                    Expected result         GitHub Actions
-  ----------------------- ----------------------- ---------------------------------------------------------------------------------------
-  Clean source            Historical Task 1 jobs  [PASS
-                          pass                    run](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35487648462)
+https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35487648462
 
-  Intentional eval        Security fails; Deploy  [BLOCK
-  fixture                 mock is skipped         run](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35487650775)
-  ---------------------------------------------------------------------------------------------------------------------------------------
+The intentional SAST fixture is kept on the demo branch and is not part of
+`main`.
 
-The fixture exists only on the demo branch and must not be merged. Both
-reports come from actual scans. See [CI evidence](docs/ci-evidence.md)
-for commit hashes and [validation](docs/validation.md) for checks
-performed.
+Detailed validation is documented in:
 
-  -----------------------------------------------------------------------
-  Artifact                            Retention
-  ----------------------------------- -----------------------------------
-  `built-image` - intermediate image  1 day
+```text
+docs/ci-evidence.md
+docs/validation.md
+```
 
-  `sast-report` - Semgrep JSON, also  30 days
-  uploaded on gate failure            
+## Task 2 - Kubernetes Deploy and Hardening
 
-  `approved-image-<SHA>` - image      7 days
-  released after gate PASS            
+Task 2 deploys the approved image to a local k3d/K3s environment.
 
-  `deploy-results` - HTTP responses   30 days
-  and container logs                  
-  -----------------------------------------------------------------------
+Two manifest sets are kept for comparison:
 
-## Task 2 - Kubernetes hardening
+```text
+k8s/insecure/
+k8s/hardened/
+```
 
-Task 2 uses k3d to run K3s inside Docker and deploys the approved
-application image into separate insecure and hardened namespaces.
+The insecure baseline intentionally contains security misconfigurations.
+Trivy config scanning identifies 19 findings in the baseline, including
+2 CRITICAL and 3 HIGH findings.
 
-The hardened workload demonstrates and verifies:
+The hardened workload applies:
 
--   non-root execution with a fixed UID;
--   privilege escalation disabled and Linux capabilities dropped;
--   read-only root filesystem and seccomp;
--   CPU and memory requests/limits;
--   dedicated ServiceAccount with no unnecessary Kubernetes API
-    permissions;
--   ServiceAccount token automount disabled;
--   default-deny NetworkPolicy with explicit required flows;
--   Restricted Pod Security admission;
--   runtime validation of identity, filesystem, RBAC and network
-    controls.
+- non-root execution with a fixed UID;
+- privilege escalation disabled;
+- Linux capabilities dropped;
+- read-only root filesystem;
+- seccomp;
+- CPU and memory requests/limits;
+- ServiceAccount token automount disabled;
+- least-privilege Kubernetes API access;
+- default-deny NetworkPolicy with explicit required flows;
+- Restricted Pod Security Admission.
 
-Run the local Kubernetes lab with:
+The local verification suite performs 33 runtime checks covering workload
+identity, filesystem restrictions, RBAC, NetworkPolicy and admission control.
 
-``` bash
+### Run the Kubernetes lab
+
+Task 1 must run first because the Kubernetes lab consumes the approved image
+record produced by the security flow:
+
+```bash
 bash scripts/demo.sh
+```
+
+Then run:
+
+```bash
 docker compose -f docker-compose.k8s.yml build lab
 docker compose -f docker-compose.k8s.yml run --rm lab all
 ```
 
-The CI job `Kubernetes hardening` runs after Deploy mock and downloads
-the same approved image artifact rather than rebuilding the application.
+Clean up with:
 
-See [Task 2](docs/task2.md) for the misconfiguration risks, remediation,
-NetworkPolicy rollout strategy, runtime evidence and cleanup commands.
+```bash
+docker compose -f docker-compose.k8s.yml run --rm lab destroy
+```
 
-## Task 3 - SCA, container and IaC scanning
+See `docs/task2.md` for the before/after analysis, NetworkPolicy rollout
+strategy and runtime verification details.
 
-Task 3 extends the release gate across three additional security layers:
+## Task 3 - SCA, Container and IaC Security
 
-  -----------------------------------------------------------------------
-  Layer                   Tool                    Purpose
-  ----------------------- ----------------------- -----------------------
-  Dependencies            pip-audit               Detect vulnerable
-                                                  Python dependencies
+Task 3 covers all three optional security areas:
 
-  Container image         Trivy                   Detect OS/package
-                                                  vulnerabilities in the
-                                                  approved image
+| Area | Tool | Purpose |
+| --- | --- | --- |
+| SCA | pip-audit | Detect vulnerable Python dependencies |
+| Container | Trivy | Detect vulnerable packages in the approved image |
+| IaC | Trivy | Detect Dockerfile and Kubernetes misconfiguration |
 
-  IaC                     Trivy                   Detect insecure
-                                                  Dockerfile and
-                                                  Kubernetes
-                                                  configurations
-  -----------------------------------------------------------------------
+The release gates are implemented by:
 
-All scans evaluate the same application artifact and deployment
-configuration used by Tasks 1 and 2.
+```text
+scripts/sca_gate.py
+scripts/container_gate.py
+scripts/iac_gate.py
+```
 
-Run the Task 3 checks with:
+The full local pipeline already includes Task 3:
 
-``` bash
+```bash
 bash scripts/demo.sh
+```
+
+To rerun only Task 3 after a successful Task 1 approval:
+
+```bash
 bash scripts/demo_task3.sh
 ```
 
-Release policy is implemented by
-[`sca_gate.py`](scripts/sca_gate.py),
-[`container_gate.py`](scripts/container_gate.py), and
-[`iac_gate.py`](scripts/iac_gate.py).
+Missing or malformed reports are rejected. The container gate also verifies
+that the scanned image identity matches the approved application artifact.
 
-See [Task 3](docs/task3.md) for the policy rationale, remediation evidence,
-and BLOCK reproduction steps.
+### Findings and remediation
 
-### Verified remediation
+Three remediation cases are demonstrated.
 
-A historical container scan identified **44 HIGH and 2 UNKNOWN OS
-findings** in the previous Debian-based runtime image. Rather than
-suppressing the findings or weakening the gate, the runtime image was
-remediated and pinned to an Alpine digest.
+**Dependency**
 
-The remediated image passes SCA, container and IaC gates without risk
-exceptions. Local API verification and all 33 Kubernetes runtime checks
-also pass.
+`pip-audit` identified Flask 3.1.2 as affected by
+`PYSEC-2026-2151 / CVE-2026-27205`.
 
--   [Historical BLOCK
-    run](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35607540442) -
-    Build, Test, SAST and SCA pass; the image gate blocks 46 findings;
-    IaC passes; deployment and Kubernetes verification are skipped.
--   [Remediated PASS
-    run](https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35608731394) -
-    SCA, container and IaC gates pass with no risk exceptions; local API
-    and all 33 Kubernetes checks pass.
+The dependency was updated to Flask 3.1.3 and rescanned.
 
-Task 3 blocks deployment on fixable or HIGH/CRITICAL/UNKNOWN image
-findings. No risk exceptions are accepted by default.
+**Python packages in the runtime image**
 
-See [security exception review](docs/security-exceptions.md) for the
-exception model and required review metadata.
+Trivy identified six findings associated with `pip` in the runtime image.
+
+The Dockerfile was changed to a multi-stage build and unnecessary runtime
+packages such as `pip` and `setuptools` were removed from the final image.
+
+**Base image**
+
+The previous Debian-based runtime image contained 152 OS-package findings,
+including 44 HIGH and 2 UNKNOWN findings.
+
+The runtime was changed to the official Python 3.12 Alpine image, pinned by
+digest. The scanned runtime OS is Alpine 3.24.2.
+
+The remediated image has zero OS and Python-package findings in the current
+evidence set. SCA and IaC gates also pass without risk exceptions.
+
+### Task 3 evidence
+
+Historical BLOCK:
+
+https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35607540442
+
+Remediated PASS:
+
+https://github.com/naolia1211/appsec-secops-case-study/actions/runs/35608731394
+
+The BLOCK run stops release because the previous image exceeds the container
+risk policy. In the remediated run, SCA, container and IaC gates pass and the
+release continues through mock deployment and Kubernetes verification.
+
+### Reproduce the dependency BLOCK
+
+The dependency fixture is maintained on a separate branch:
+
+```bash
+git switch codex/demo-dependency-block
+bash scripts/demo.sh; echo $?
+git switch main
+```
+
+The branch restores the vulnerable Flask 3.1.2 dependency used before
+remediation. The SCA gate is expected to block the release path.
+
+The fixture branch is retained only for negative testing and must not be
+merged into `main`.
+
+See `docs/task3.md` for the detailed scan evidence and remediation analysis.
+
+## Mock deployment
+
+`Deploy mock` is an ephemeral CI validation step, not a production deployment.
+
+The job loads the approved Docker image, starts a temporary container, verifies
+the application endpoints and collects the test result. The container is
+removed when the job finishes.
+
+The purpose is to verify that the artifact which passed the security gates can
+start successfully before Kubernetes verification. It does not model production
+availability, traffic management or orchestration.
 
 ## Repository structure
 
-``` text
-.github/workflows/     CI/CD security pipeline
+```text
+.github/workflows/     GitHub Actions pipeline
 app/                   Flask application
 docs/                  Task documentation and validation evidence
-k8s/                   Kubernetes insecure/hardened manifests
-reports/               Generated security reports
-scripts/               Security scanners, policy gates and demo automation
+k8s/                   Insecure and hardened Kubernetes manifests
+reports/               Security scan evidence
+scripts/               Scanners, policy gates and demo automation
 tests/                 Application and security-control tests
-Dockerfile             Application container image
-docker-compose.yml     Local Task 1 environment
-docker-compose.k8s.yml Kubernetes lab environment
+Dockerfile             Application image
+docker-compose.yml     Local application/security environment
+docker-compose.k8s.yml Local Kubernetes lab
 ```
 
 ## Scope and limitations
 
-This repository is an interview case study and local security lab, not a
-production deployment platform.
+This repository is a case-study security lab rather than a production
+deployment platform.
 
--   SAST covers selected source files and rules; dependency and
-    container risks are evaluated separately by Task 3.
--   Registry-backed scanner rules require network access and may change
-    over time.
--   Transitive dependencies are not fully locked; the application base
-    image is pinned by digest.
--   Branch protection is not configured in this public lab. A failed CI
-    gate stops downstream deployment but does not independently prevent
-    a repository merge.
--   Security exceptions are not accepted by default. The example
-    exception workflow demonstrates the required metadata and review
-    model; production risk acceptance would require independent approval
-    and protected change controls.
+Current limitations include:
 
-See [security exception review](docs/security-exceptions.md) for the
-exception model.
+- branch protection and independent release approval are not configured;
+- transitive dependencies are not fully locked;
+- registry-backed scanner rules and vulnerability databases can change over
+  time;
+- a zero-finding scan represents a point-in-time result, not a permanent
+  guarantee that the artifact is vulnerability-free;
+- production secrets management, monitoring and audit controls are outside the
+  local lab scope.
+
+Security exceptions are not accepted by default. A production implementation
+would require independent risk approval and protected change controls.
+
+See `docs/security-exceptions.md` for the exception model.
